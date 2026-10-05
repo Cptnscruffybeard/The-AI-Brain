@@ -17,7 +17,7 @@ Provider-independent, policy-controlled AI operating system based on the AI Brai
 - Provider-independent model router and generic Responses API adapter.
 - Dependency-aware planner with cycle validation.
 - Bounded task scheduler for independent work, with drain-until-idle behavior.
-- PostgreSQL schema under `db/schema.sql` and pgvector HNSW memory index under `db/vector.sql`.
+- PostgreSQL schema under `db/schema.sql`, pgvector HNSW memory index under `db/vector.sql`, and a transactional snapshot adapter under `src/persistence/postgres-persistence.ts`.
 
 ## Architecture
 Goal -> classify -> plan -> task graph -> specialist agent -> context compiler -> policy -> tool gateway -> result -> QA -> security -> red team -> approval -> deployment -> monitoring -> memory.
