@@ -7,6 +7,7 @@ import {PolicyEngine} from "./policy/policy-engine.js";
 import {ContextCompiler} from "./context/context-compiler.js";
 import {Orchestrator} from "./orchestration/orchestrator.js";
 import {TaskScheduler} from "./orchestration/task-scheduler.js";
+import {BrainWorker} from "./runtime/brain-worker.js";
 import {ToolGateway} from "./tools/tool-gateway.js";
 import {TaskGraph} from "./orchestration/task-graph.js";
 import {TaskPlanner} from "./orchestration/planner.js";
@@ -30,6 +31,7 @@ export class AIBrain {
   readonly reviews:ReviewEngine;
   readonly orchestrator:Orchestrator;
   readonly scheduler:TaskScheduler;
+  readonly worker:BrainWorker;
   readonly models=new ModelRouter();
 
   constructor(){
@@ -46,6 +48,7 @@ export class AIBrain {
     this.planner=new TaskPlanner(this.store);
     this.orchestrator=new Orchestrator(this.store,this.agents,this.policy,new ContextCompiler(this.store),this.approvals,this.reviews,this.tools);
     this.scheduler=new TaskScheduler(this);
+    this.worker=new BrainWorker(this);
   }
 
   createProject(name:string,description=""){
