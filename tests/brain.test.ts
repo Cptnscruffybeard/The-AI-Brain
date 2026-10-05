@@ -23,3 +23,32 @@ it("supersedes memory",()=>{
   expect(memories).toHaveLength(1);
   expect(memories[0]?.content).toBe("new rule");
 });
+
+it("gives agents only policy-approved tools",async()=>{
+  const b=new AIBrain(); const p=b.createProject("tools");
+  let seen:string[]=[];
+  b.tools.register({name:"safe",description:"safe",risk:"low",requiredPermissions:["read"],async execute(){return "ok"}});
+  b.tools.register({name:"write-tool",description:"write",risk:"medium",requiredPermissions:["write"],async execute(){return "changed"}});
+  const a:AgentDefinition={...agent(),id:"tool-agent",async execute(ctx){seen=ctx.allowedTools; expect(ctx.toolRuntime).toBeDefined(); const value=await ctx.toolRuntime?.execute("safe",{}); return{status:"completed",summary:"ok",output:value}}};
+  b.registerAgent(a);
+  const r=await b.request({projectId:p.id,goal:"use tools",risk:"medium",permissions:["read"]});
+  expect(r.status).toBe("completed");
+  expect(seen).toContain("safe");
+  expect(seen).not.toContain("write-tool");
+});
+
+it("builds dependency graphs and runs ready tasks in order",async()=>{
+  const b=new AIBrain(); const p=b.createProject("plan");
+  const executed:string[]=[];
+  const a:AgentDefinition={...agent(),id:"planner-agent",async execute(ctx){executed.push(ctx.task.title);return{status:"completed",summary:"ok"}}};
+  b.registerAgent(a);
+  const tasks=b.plan(p.id,[
+    {key:"one",title:"one",description:"first"},
+    {key:"two",title:"two",description:"second",dependsOn:["one"]}
+  ]);
+  expect(tasks[1]?.dependencies).toEqual([tasks[0]?.id]);
+  await b.runReady(p.id);
+  expect(executed).toEqual(["one"]);
+  await b.runReady(p.id);
+  expect(executed).toEqual(["one","two"]);
+});
