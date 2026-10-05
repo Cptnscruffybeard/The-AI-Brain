@@ -1,13 +1,12 @@
 import {id,now} from "../core/id.js";
 import type {AgentRegistry} from "../agents/registry.js";
 import type {BrainStore} from "../core/store.js";
-import type {AgentResult,BrainRequest,Task} from "../domain/types.js";
+import type {AgentDefinition,AgentResult,BrainRequest,Task} from "../domain/types.js";
 import {PolicyEngine} from "../policy/policy-engine.js";
 import {ContextCompiler} from "../context/context-compiler.js";
 import {ApprovalManager} from "../core/approval-manager.js";
 import {ReviewEngine} from "../review/review-engine.js";
 import {ToolGateway} from "../tools/tool-gateway.js";
-import type {AgentDefinition} from "../domain/types.js";
 
 export class Orchestrator {
   constructor(
@@ -16,7 +15,8 @@ export class Orchestrator {
     private policy:PolicyEngine,
     private compiler:ContextCompiler,
     private approvals:ApprovalManager,
-    private reviews:ReviewEngine
+    private reviews:ReviewEngine,
+    private toolGateway:ToolGateway
   ){}
 
   async run(req:BrainRequest):Promise<AgentResult>{
@@ -40,7 +40,9 @@ export class Orchestrator {
   }
 
   async runReady(projectId:string,maxTasks=10){
-    const ready=this.store.projectTasks(projectId).filter(t=>t.status==="queued"&&t.dependencies.every(d=>this.store.getTask(d)?.status==="completed")).slice(0,maxTasks);
+    const ready=this.store.projectTasks(projectId)
+      .filter(t=>t.status==="queued"&&t.dependencies.every(d=>this.store.getTask(d)?.status==="completed"))
+      .slice(0,maxTasks);
     const results=[];
     for(const task of ready) results.push(await this.executeTask(task,false));
     return results;
@@ -53,7 +55,8 @@ export class Orchestrator {
     const decision=this.policy.evaluateTask(task,agent.authority,approved);
     if(!decision.allowed){
       if(decision.requiresApproval){
-        const approval=this.approvals.request(task.id,task.projectId,"execute task",decision.reason,task.risk,agent.id);
+        const existing=this.store.pendingApprovals(task.projectId).find(a=>a.taskId===task.id);
+        const approval=existing??this.approvals.request(task.id,task.projectId,"execute task",decision.reason,task.risk,agent.id);
         this.block(task,decision.reason);
         return {status:"blocked",summary:decision.reason+" Approval requested: "+approval.id};
       }
@@ -65,6 +68,9 @@ export class Orchestrator {
     this.emit("task.started",task.id,{agent:agent.id,attempt:task.attempts});
     try{
       const context=this.compiler.compile(task);
+      const runtime=this.toolGateway.runtime(task,agent);
+      context.allowedTools=runtime.allowedTools;
+      context.toolRuntime=runtime;
       const result=await agent.execute(context);
       const review=this.reviews.evaluate(context,result);
       this.store.events.push({id:id(),type:"task.reviewed",timestamp:now(),projectId:task.projectId,taskId:task.id,actor:"review-engine",data:{passed:review.passed,score:review.score,findings:review.findings}});
@@ -86,7 +92,7 @@ export class Orchestrator {
     }
   }
 
-  private createToolRuntime(task:Task,agent:AgentDefinition){\n    return this.toolGateway.runtime(task,agent);\n  }\n\n  private block(task:Task,reason:string):AgentResult{
+  private block(task:Task,reason:string):AgentResult{
     task.status="blocked"; task.error=reason; task.updatedAt=now();
     this.emit("task.blocked",task.id,{reason});
     return {status:"blocked",summary:reason};
