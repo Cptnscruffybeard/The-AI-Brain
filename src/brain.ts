@@ -8,6 +8,8 @@ import {ContextCompiler} from "./context/context-compiler.js";
 import {Orchestrator} from "./orchestration/orchestrator.js";
 import {ToolGateway} from "./tools/tool-gateway.js";
 import {TaskGraph} from "./orchestration/task-graph.js";
+import {TaskPlanner} from "./orchestration/planner.js";
+import type {PlanStep} from "./orchestration/planner.js";
 import {ReviewEngine} from "./review/review-engine.js";
 import {ModelRouter} from "./model/model-router.js";
 import type {ModelProvider,ModelRequest} from "./domain/types.js";
@@ -20,6 +22,7 @@ export class AIBrain {
   readonly policy=new PolicyEngine();
   readonly tools:ToolGateway;
   readonly taskGraph:TaskGraph;
+  readonly planner:TaskPlanner;
   readonly approvals:ApprovalManager;
   readonly reviews:ReviewEngine;
   readonly orchestrator:Orchestrator;
@@ -36,6 +39,7 @@ export class AIBrain {
     });
     this.tools=new ToolGateway(this.store,this.policy);
     this.taskGraph=new TaskGraph(this.store);
+    this.planner=new TaskPlanner(this.store);
     this.orchestrator=new Orchestrator(this.store,this.agents,this.policy,new ContextCompiler(this.store),this.approvals,this.reviews,this.tools);
   }
 
@@ -51,6 +55,7 @@ export class AIBrain {
   request(r:BrainRequest){return this.orchestrator.run(r)}
   resumeApproved(taskId:string,approvalId:string){return this.orchestrator.resumeApproved(taskId,approvalId)}
   runReady(projectId:string,maxTasks=10){return this.orchestrator.runReady(projectId,maxTasks)}
+  plan(projectId:string,steps:PlanStep[]){return this.planner.create(projectId,steps)}
   registerModelProvider(provider:ModelProvider){this.models.register(provider)}
   completeModel(request:ModelRequest,providerId:string,model:string){return this.models.complete(request,providerId,model)}
   stopAll(){this.policy.stopAll()}
