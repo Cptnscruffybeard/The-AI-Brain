@@ -137,7 +137,7 @@ it("runs queued work through the Brain worker",async()=>{
 });
 
 it("recovers an expired worker lease",async()=>{
-  const b=new AIBrain();const p=b.createProject("recovery");b.registerAgent(agent());
+  const b=new AIBrain();const p=b.createProject("recovery");b.registerAgent({...agent(),id:"recovery-agent",canHandle:t=>t.type==="planned"});
   const task= b.plan(p.id,[{key:"one",title:"one",description:"one"}])[0];
   if(!task)throw new Error("task missing");
   task.status="running";task.updatedAt=new Date().toISOString();
