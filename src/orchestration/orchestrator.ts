@@ -84,7 +84,7 @@ export class Orchestrator {
     }
   }
 
-  private block(task:Task,reason:string):AgentResult{
+  private createToolRuntime(task:Task,agent:import("../domain/types.js").AgentDefinition){\n    return this.toolGateway.runtime(task,agent);\n  }\n\n  private block(task:Task,reason:string):AgentResult{
     task.status="blocked"; task.error=reason; task.updatedAt=now();
     this.emit("task.blocked",task.id,{reason});
     return {status:"blocked",summary:reason};
