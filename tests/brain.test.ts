@@ -29,7 +29,7 @@ it("gives agents only policy-approved tools",async()=>{
   let seen:string[]=[];
   b.tools.register({name:"safe",description:"safe",risk:"low",requiredPermissions:["read"],async execute(){return "ok"}});
   b.tools.register({name:"write-tool",description:"write",risk:"medium",requiredPermissions:["write"],async execute(){return "changed"}});
-  const a:AgentDefinition={...agent(),id:"tool-agent",async execute(ctx){seen=ctx.allowedTools; expect(ctx.toolRuntime).toBeDefined(); const value=await ctx.toolRuntime?.execute("safe",{}); return{status:"completed",summary:"ok",output:value}}};
+  const a:AgentDefinition={...agent(),id:"tool-agent",permissions:["read"],async execute(ctx){seen=ctx.allowedTools; expect(ctx.toolRuntime).toBeDefined(); const value=await ctx.toolRuntime?.execute("safe",{}); return{status:"completed",summary:"ok",output:value}}};
   b.registerAgent(a);
   const r=await b.request({projectId:p.id,goal:"use tools",risk:"medium",permissions:["read"]});
   expect(r.status).toBe("completed");
