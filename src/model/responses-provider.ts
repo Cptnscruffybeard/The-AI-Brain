@@ -45,7 +45,8 @@ export class ResponsesApiProvider implements ModelProvider {
     };
     const text=body.output_text??body.output?.flatMap(item=>item.content??[]).map(part=>part.text??"").join("")??"";
     if(!text) throw new Error("Model provider returned no text output.");
-    const usage={...(body.usage?.input_tokens===undefined?{}:{inputTokens:body.usage.input_tokens}),...(body.usage?.output_tokens===undefined?{}:{outputTokens:body.usage.output_tokens})};\n    return Object.keys(usage).length?{text,provider:this.id,model,usage}:{text,provider:this.id,model};
+    const usage={...(body.usage?.input_tokens===undefined?{}:{inputTokens:body.usage.input_tokens}),...(body.usage?.output_tokens===undefined?{}:{outputTokens:body.usage.output_tokens})};
+    return Object.keys(usage).length?{text,provider:this.id,model,usage}:{text,provider:this.id,model};
   }
 }
 
