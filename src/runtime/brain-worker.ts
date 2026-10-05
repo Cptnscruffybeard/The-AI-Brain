@@ -95,6 +95,9 @@ export class BrainWorker {
 
   stop(){this.running=false}
 
+  /** Returns the worker claim state for diagnostics/metrics. */
+  claimedTasks():string[]{return [...this.claimed.keys()]}
+
   async wake(){
     for(const projectId of this.brain.store.projects.keys())await this.tick(projectId);
   }
