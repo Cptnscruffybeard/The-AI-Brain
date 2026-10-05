@@ -1,4 +1,5 @@
-import {describe,it,expect} from "vitest"; import {AIBrain} from "../src/brain.js"; import type {AgentDefinition} from "../src/domain/types.js";
+import {describe,it,expect} from "vitest"; import {AIBrain} from "../src/brain.js"; import type {AgentDefinition,ModelProvider} from "../src/domain/types.js";
+import {ModelBackedAgent} from "../src/agents/model-backed-agent.js";
 function agent(authority=1):AgentDefinition{return{id:"developer",name:"Developer",description:"test",capabilities:["code"],permissions:["read","write","execute"],authority,canHandle:t=>t.type==="goal",async execute(){return{status:"completed",summary:"ok",output:{ok:true}}}}}
 describe("AI Brain foundation",()=>{it("runs permitted work",async()=>{const b=new AIBrain();const p=b.createProject("test");b.registerAgent(agent());const r=await b.request({projectId:p.id,goal:"do work",permissions:["write"]});expect(r.status).toBe("completed");expect(b.store.events.map(e=>e.type)).toContain("task.completed")});it("blocks insufficient authority",async()=>{const b=new AIBrain();const p=b.createProject("test");b.registerAgent(agent());const r=await b.request({projectId:p.id,goal:"deploy",risk:"high",permissions:["deploy-staging"]});expect(r.status).toBe("blocked")});it("kill switch blocks execution",async()=>{const b=new AIBrain();const p=b.createProject("test");b.registerAgent(agent());b.stopAll();const r=await b.request({projectId:p.id,goal:"do work"});expect(r.status).toBe("blocked")});});
 
@@ -51,4 +52,17 @@ it("builds dependency graphs and runs ready tasks in order",async()=>{
   expect(executed).toEqual(["one"]);
   await b.runReady(p.id);
   expect(executed).toEqual(["one","two"]);
+});
+
+it("runs a model-backed agent through the provider router",async()=>{
+  const b=new AIBrain(); const p=b.createProject("model");
+  const provider:ModelProvider={id:"fake",models:()=>["test-model"],async complete(){return{provider:"fake",model:"test-model",text:"model result"}}};
+  b.registerModelProvider(provider);
+  b.registerAgent(new ModelBackedAgent({
+    id:"model-agent",name:"Model Agent",description:"test model agent",capabilities:["general"],
+    permissions:["read"],authority:0,providerId:"fake",model:"test-model",systemPrompt:"You are a test agent.",router:b.models
+  }));
+  const r=await b.request({projectId:p.id,goal:"answer the task",acceptanceCriteria:["model result"]});
+  expect(r.status).toBe("completed");
+  expect(r.summary).toContain("model result");
 });
