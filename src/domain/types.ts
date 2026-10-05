@@ -18,3 +18,11 @@ export interface ToolDefinition { name:string; description:string; risk:RiskLeve
 export interface ToolRequest { taskId:Id; agentId:string; toolName:string; permissions:Permission[]; risk:RiskLevel; input:unknown; }
 export interface BrainEvent { id:Id; type:string; timestamp:Timestamp; projectId?:Id; taskId?:Id; actor:string; data:Record<string,unknown>; }
 export interface BrainRequest { projectId:Id; goal:string; risk?:RiskLevel; permissions?:Permission[]; }
+export type ApprovalStatus = "pending" | "approved" | "rejected" | "expired";
+export interface ApprovalRequest { id:Id; taskId:Id; projectId:Id; action:string; reason:string; risk:RiskLevel; status:ApprovalStatus; requestedBy:string; decidedBy?:string; createdAt:Timestamp; decidedAt?:Timestamp; }
+export interface ReviewFinding { severity:"info"|"warning"|"error"|"critical"; message:string; source:string; }
+export interface ReviewResult { passed:boolean; score:number; findings:ReviewFinding[]; }
+export interface ModelMessage { role:"system"|"user"|"assistant"|"tool"; content:string; }
+export interface ModelRequest { messages:ModelMessage[]; temperature?:number; maxTokens?:number; }
+export interface ModelResponse { text:string; provider:string; model:string; usage?:{inputTokens?:number;outputTokens?:number}; }
+export interface ModelProvider { id:string; models():string[]; complete(request:ModelRequest,model:string):Promise<ModelResponse>; }
