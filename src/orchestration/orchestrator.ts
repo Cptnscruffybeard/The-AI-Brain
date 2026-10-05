@@ -6,6 +6,8 @@ import {PolicyEngine} from "../policy/policy-engine.js";
 import {ContextCompiler} from "../context/context-compiler.js";
 import {ApprovalManager} from "../core/approval-manager.js";
 import {ReviewEngine} from "../review/review-engine.js";
+import {ToolGateway} from "../tools/tool-gateway.js";
+import type {AgentDefinition} from "../domain/types.js";
 
 export class Orchestrator {
   constructor(
@@ -84,7 +86,7 @@ export class Orchestrator {
     }
   }
 
-  private createToolRuntime(task:Task,agent:import("../domain/types.js").AgentDefinition){\n    return this.toolGateway.runtime(task,agent);\n  }\n\n  private block(task:Task,reason:string):AgentResult{
+  private createToolRuntime(task:Task,agent:AgentDefinition){\n    return this.toolGateway.runtime(task,agent);\n  }\n\n  private block(task:Task,reason:string):AgentResult{
     task.status="blocked"; task.error=reason; task.updatedAt=now();
     this.emit("task.blocked",task.id,{reason});
     return {status:"blocked",summary:reason};
