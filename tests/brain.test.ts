@@ -40,7 +40,7 @@ it("gives agents only policy-approved tools",async()=>{
 it("builds dependency graphs and runs ready tasks in order",async()=>{
   const b=new AIBrain(); const p=b.createProject("plan");
   const executed:string[]=[];
-  const a:AgentDefinition={...agent(),id:"planner-agent",async execute(ctx){executed.push(ctx.task.title);return{status:"completed",summary:"ok"}}};
+  const a:AgentDefinition={...agent(),id:"planner-agent",canHandle:t=>t.type==="planned"||t.type==="goal",async execute(ctx){executed.push(ctx.task.title);return{status:"completed",summary:"ok"}}};
   b.registerAgent(a);
   const tasks=b.plan(p.id,[
     {key:"one",title:"one",description:"first"},
