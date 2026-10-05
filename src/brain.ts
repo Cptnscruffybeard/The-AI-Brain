@@ -9,6 +9,8 @@ import {Orchestrator} from "./orchestration/orchestrator.js";
 import {ToolGateway} from "./tools/tool-gateway.js";
 import {TaskGraph} from "./orchestration/task-graph.js";
 import {ReviewEngine} from "./review/review-engine.js";
+import {ModelRouter} from "./model/model-router.js";
+import type {ModelProvider,ModelRequest} from "./domain/types.js";
 import type {AgentDefinition,BrainRequest,Memory,Project} from "./domain/types.js";
 
 export class AIBrain {
@@ -21,6 +23,7 @@ export class AIBrain {
   readonly approvals:ApprovalManager;
   readonly reviews:ReviewEngine;
   readonly orchestrator:Orchestrator;
+  readonly models=new ModelRouter();
 
   constructor(){
     this.memory=new MemoryService(this.store);
@@ -48,6 +51,8 @@ export class AIBrain {
   request(r:BrainRequest){return this.orchestrator.run(r)}
   resumeApproved(taskId:string,approvalId:string){return this.orchestrator.resumeApproved(taskId,approvalId)}
   runReady(projectId:string,maxTasks=10){return this.orchestrator.runReady(projectId,maxTasks)}
+  registerModelProvider(provider:ModelProvider){this.models.register(provider)}
+  completeModel(request:ModelRequest,providerId:string,model:string){return this.models.complete(request,providerId,model)}
   stopAll(){this.policy.stopAll()}
   resume(){this.policy.resume()}
 }
