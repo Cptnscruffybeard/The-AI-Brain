@@ -1,0 +1,4 @@
+import {AIBrain} from "./brain.js"; import type {AgentDefinition} from "./domain/types.js";
+const brain=new AIBrain(); const project=brain.createProject("AI Brain","Core Brain development");
+const agent:AgentDefinition={id:"orchestrator",name:"Orchestrator / CEO",description:"Turns objectives into controlled work.",capabilities:["planning","coordination"],permissions:["read","write","execute"],authority:3,canHandle:t=>t.type==="goal",async execute(ctx){return{status:"completed",summary:"Goal accepted: "+ctx.task.title,output:{taskId:ctx.task.id,memoriesUsed:ctx.memories.length,decisions:ctx.decisions.length}}}};
+brain.registerAgent(agent); const result=await brain.request({projectId:project.id,goal:"Establish the Brain foundation",risk:"low",permissions:["read"]}); console.log(JSON.stringify({result,events:brain.store.events.length},null,2));
