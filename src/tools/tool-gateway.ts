@@ -1,4 +1,4 @@
-import type {AgentDefinition,Permission,Task,ToolDefinition,ToolRequest} from "../domain/types.js";
+import type {AgentDefinition,Task,ToolDefinition,ToolRequest} from "../domain/types.js";
 import type {BrainStore} from "../core/store.js";
 import type {PolicyEngine} from "../policy/policy-engine.js";
 import {id,now} from "../core/id.js";
@@ -11,8 +11,9 @@ export class ToolGateway {
   allowedFor(task:Task,agent:AgentDefinition){
     return this.list().filter(tool=>{
       if(tool.risk==="critical" || toolRiskAbove(tool.risk,task.risk)) return false;
-      const required=tool.requiredPermissions.every(p=>agent.permissions.includes(p));
-      return required;
+      const agentHas=tool.requiredPermissions.every(p=>agent.permissions.includes(p));
+      const taskAllows=tool.requiredPermissions.every(p=>task.permissions.includes(p));
+      return agentHas&&taskAllows;
     }).map(t=>t.name);
   }
   async execute(r:ToolRequest,a:AgentDefinition){
@@ -28,7 +29,7 @@ export class ToolGateway {
   }
   runtime(task:Task,agent:AgentDefinition){
     const allowed=this.allowedFor(task,agent);
-    return {allowedTools:allowed,execute:(toolName:string,input:unknown)=>this.execute({taskId:task.id,agentId:agent.id,toolName,permissions:[],risk:task.risk,input},agent)};
+    return {allowedTools:allowed,execute:(toolName:string,input:unknown)=>this.execute({taskId:task.id,agentId:agent.id,toolName,permissions:[],taskPermissions:task.permissions,risk:task.risk,input},agent)};
   }
 }
 function toolRiskAbove(toolRisk:Task["risk"],taskRisk:Task["risk"]){
