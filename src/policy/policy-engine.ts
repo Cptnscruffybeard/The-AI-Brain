@@ -1,6 +1,9 @@
 import type {AuthorityLevel,Permission,PolicyDecision,RiskLevel,Task,ToolRequest} from "../domain/types.js";
 const rank:Record<RiskLevel,number>={low:0,medium:1,high:2,critical:3};
-const level:Record<Permission,AuthorityLevel>={read:0,write:1,execute:1,"deploy-staging":4,"deploy-production":5,financial:6,legal:6,destructive:6,"security-policy":6};\nconst permissions=new Set(Object.keys(level));\nconst risks=new Set<RiskLevel>(["low","medium","high","critical"]);\nconst validPermissions=(values:unknown[]):values is Permission[]=>values.every(v=>typeof v==="string"&&permissions.has(v));
+const level:Record<Permission,AuthorityLevel>={read:0,write:1,execute:1,"deploy-staging":4,"deploy-production":5,financial:6,legal:6,destructive:6,"security-policy":6};
+const permissions=new Set(Object.keys(level));
+const risks=new Set<RiskLevel>(["low","medium","high","critical"]);
+const validPermissions=(values:unknown[]):values is Permission[]=>values.every(v=>typeof v==="string"&&permissions.has(v));
 
 export class PolicyEngine {
   private stopped=false;
