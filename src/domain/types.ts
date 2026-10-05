@@ -16,7 +16,7 @@ export interface ToolRuntime { allowedTools:string[]; execute(toolName:string,in
 export interface ContextPacket { task:Task; goal?:Goal|undefined; project?:Project|undefined; memories:Memory[]; decisions:Decision[]; artifacts:Artifact[]; constraints:string[]; rules:string[]; allowedTools:string[]; toolRuntime?:ToolRuntime|undefined; }
 export interface PolicyDecision { allowed:boolean; reason:string; requiresApproval:boolean; authority:AuthorityLevel; }
 export interface ToolDefinition { name:string; description:string; risk:RiskLevel; requiredPermissions:Permission[]; execute:(input:unknown)=>Promise<unknown>; }
-export interface ToolRequest { taskId:Id; agentId:string; toolName:string; permissions:Permission[]; risk:RiskLevel; input:unknown; }
+export interface ToolRequest { taskId:Id; agentId:string; toolName:string; permissions:Permission[]; taskPermissions:Permission[]; risk:RiskLevel; input:unknown; }
 export interface BrainEvent { id:Id; type:string; timestamp:Timestamp; projectId?:Id|undefined; taskId?:Id|undefined; actor:string; data:Record<string,unknown>; }
 export interface BrainRequest { projectId:Id; goal:string; risk?:RiskLevel; permissions?:Permission[]; acceptanceCriteria?:string[]; budget?:{maxAttempts:number;maxCost?:number}; }
 export type ApprovalStatus = "pending" | "approved" | "rejected" | "expired";
