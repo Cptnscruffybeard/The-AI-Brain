@@ -122,3 +122,29 @@ it("persists the Brain state through the SQL adapter",async()=>{
   expect(queries.some(q=>q.startsWith("INSERT INTO projects"))).toBe(true);
   expect(queries.some(q=>q.startsWith("INSERT INTO memories"))).toBe(true);
 });
+
+
+it("runs queued work through the Brain worker",async()=>{
+  const b=new AIBrain();const p=b.createProject("worker");const executed:string[]=[];
+  b.registerAgent({...agent(),id:"worker-agent",canHandle:t=>t.type==="planned",async execute(ctx){
+    executed.push(ctx.task.title);return{status:"completed",summary:"ok"};
+  }});
+  b.plan(p.id,[{key:"one",title:"one",description:"one"},{key:"two",title:"two",description:"two",dependsOn:["one"]}]);
+  const results=await b.worker.runUntilIdle(p.id);
+  expect(executed).toEqual(["one","two"]);
+  expect(results.length).toBeGreaterThan(0);
+  expect(b.store.projectTasks(p.id).every(t=>t.status==="completed")).toBe(true);
+});
+
+it("recovers an expired worker lease",async()=>{
+  const b=new AIBrain();const p=b.createProject("recovery");b.registerAgent(agent());
+  const task= b.plan(p.id,[{key:"one",title:"one",description:"one"}])[0];
+  if(!task)throw new Error("task missing");
+  task.status="running";task.updatedAt=new Date().toISOString();
+  const worker=(b.worker as any);
+  worker.claimed.set(task.id,Date.now()-1);
+  const tick=await b.worker.tick(p.id);
+  expect(tick.recovered).toBe(1);
+  expect(task.status).toBe("completed");
+  expect(b.store.events.map(e=>e.type)).toContain("worker.task.recovered");
+});
