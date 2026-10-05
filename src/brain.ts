@@ -31,7 +31,7 @@ export class AIBrain {
     this.reviews=new ReviewEngine();
     this.reviews.register((ctx,result)=>{
       if(result.status!=="completed") return;
-      const missing=ctx.task.acceptanceCriteria.filter(c=>!result.summary.toLowerCase().includes(c.toLowerCase()));
+      const missing=ctx.task.acceptanceCriteria.filter((criterion:string)=>!result.summary.toLowerCase().includes(criterion.toLowerCase()));
       return missing.length?{severity:"warning",message:"Acceptance criteria were not explicitly referenced in the result: "+missing.join("; "),source:"acceptance-gate"}:undefined;
     });
     this.tools=new ToolGateway(this.store,this.policy);
