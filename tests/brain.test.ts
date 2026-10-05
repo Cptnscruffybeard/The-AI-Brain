@@ -105,3 +105,20 @@ it("registers the standard specialist team",()=>{
   expect(b.agents.get("security")?.authority).toBe(3);
   expect(b.agents.get("researcher")?.permissions).toEqual(["read"]);
 });
+
+
+it("persists the Brain state through the SQL adapter",async()=>{
+  const b=new AIBrain();const p=b.createProject("durable");
+  b.remember({projectId:p.id,type:"fact",content:"durable fact",tags:["durable"],source:"test",confidence:1,importance:1});
+  const queries:string[]=[];
+  const client:any={
+    async query(text:string){queries.push(text);return{rows:[]};},
+    async transaction(work:(tx:any)=>Promise<unknown>){return work(this);}
+  };
+  const {PostgresPersistence}=await import("../src/persistence/postgres-persistence.js");
+  const persisted=await b.persist(new PostgresPersistence(client));
+  expect(persisted.projects).toBe(1);
+  expect(persisted.memories).toBe(1);
+  expect(queries.some(q=>q.startsWith("INSERT INTO projects"))).toBe(true);
+  expect(queries.some(q=>q.startsWith("INSERT INTO memories"))).toBe(true);
+});
