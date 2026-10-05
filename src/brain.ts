@@ -36,7 +36,7 @@ export class AIBrain {
     });
     this.tools=new ToolGateway(this.store,this.policy);
     this.taskGraph=new TaskGraph(this.store);
-    this.orchestrator=new Orchestrator(this.store,this.agents,this.policy,new ContextCompiler(this.store),this.approvals,this.reviews);
+    this.orchestrator=new Orchestrator(this.store,this.agents,this.policy,new ContextCompiler(this.store),this.approvals,this.reviews,this.tools);
   }
 
   createProject(name:string,description=""){
