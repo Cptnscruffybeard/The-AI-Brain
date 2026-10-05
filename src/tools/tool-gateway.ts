@@ -1,5 +1,37 @@
-import type {AgentDefinition,ToolDefinition,ToolRequest} from "../domain/types.js"; import type {BrainStore} from "../core/store.js"; import type {PolicyEngine} from "../policy/policy-engine.js"; import {id,now} from "../core/id.js";
-export class ToolGateway { private tools=new Map<string,ToolDefinition>(); constructor(private store:BrainStore,private policy:PolicyEngine){}
- register(t:ToolDefinition){if(this.tools.has(t.name))throw new Error("Tool already exists: "+t.name);this.tools.set(t.name,t)} list(){return[...this.tools.values()]}
- async execute(r:ToolRequest,a:AgentDefinition){const tool=this.tools.get(r.toolName);if(!tool)throw new Error("Unknown tool: "+r.toolName);const d=this.policy.evaluateTool(r,a.authority,tool.risk);this.store.events.push({id:id(),type:d.allowed?"tool.allowed":"tool.blocked",timestamp:now(),taskId:r.taskId,actor:a.id,data:{tool:r.toolName,reason:d.reason}});if(!d.allowed)throw new Error("Tool blocked by policy: "+d.reason);const result=await tool.execute(r.input);this.store.events.push({id:id(),type:"tool.completed",timestamp:now(),taskId:r.taskId,actor:a.id,data:{tool:r.toolName}});return result}
+import type {AgentDefinition,Permission,Task,ToolDefinition,ToolRequest} from "../domain/types.js";
+import type {BrainStore} from "../core/store.js";
+import type {PolicyEngine} from "../policy/policy-engine.js";
+import {id,now} from "../core/id.js";
+
+export class ToolGateway {
+  private tools=new Map<string,ToolDefinition>();
+  constructor(private store:BrainStore,private policy:PolicyEngine){}
+  register(t:ToolDefinition){if(this.tools.has(t.name))throw new Error("Tool already exists: "+t.name);this.tools.set(t.name,t)}
+  list(){return[...this.tools.values()]}
+  allowedFor(task:Task,agent:AgentDefinition){
+    return this.list().filter(tool=>{
+      if(tool.risk==="critical" || toolRiskAbove(tool.risk,task.risk)) return false;
+      const required=tool.requiredPermissions.every(p=>agent.permissions.includes(p));
+      return required;
+    }).map(t=>t.name);
+  }
+  async execute(r:ToolRequest,a:AgentDefinition){
+    const tool=this.tools.get(r.toolName);
+    if(!tool)throw new Error("Unknown tool: "+r.toolName);
+    const permissions=tool.requiredPermissions;
+    const decision=this.policy.evaluateTool({...r,permissions,risk:tool.risk},a.authority,tool.risk);
+    this.store.events.push({id:id(),type:decision.allowed?"tool.allowed":"tool.blocked",timestamp:now(),taskId:r.taskId,actor:a.id,data:{tool:r.toolName,reason:decision.reason}});
+    if(!decision.allowed)throw new Error("Tool blocked by policy: "+decision.reason);
+    const result=await tool.execute(r.input);
+    this.store.events.push({id:id(),type:"tool.completed",timestamp:now(),taskId:r.taskId,actor:a.id,data:{tool:r.toolName}});
+    return result;
+  }
+  runtime(task:Task,agent:AgentDefinition){
+    const allowed=this.allowedFor(task,agent);
+    return {allowedTools:allowed,execute:(toolName:string,input:unknown)=>this.execute({taskId:task.id,agentId:agent.id,toolName,permissions:[],risk:task.risk,input},agent)};
+  }
+}
+function toolRiskAbove(toolRisk:Task["risk"],taskRisk:Task["risk"]){
+  const rank={low:0,medium:1,high:2,critical:3};
+  return rank[toolRisk]>rank[taskRisk];
 }
