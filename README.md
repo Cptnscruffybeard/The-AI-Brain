@@ -15,6 +15,9 @@ Provider-independent, policy-controlled AI operating system based on the AI Brai
 - Human approval queue for gated work and resumable approved tasks.
 - Quality review gate between agent execution and task completion.
 - Provider-independent model router contract.
+- Generic Responses API provider adapter and model-backed agent foundation.
+- Dependency-aware task planner with cycle validation.
+- Governed agent tool runtime: agents only receive tools permitted by their authority, permissions, and task risk.
 - Production PostgreSQL schema under `db/schema.sql` for durable state migration.
 
 ## Architecture
