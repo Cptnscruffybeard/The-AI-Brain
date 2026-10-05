@@ -13,6 +13,7 @@ import {TaskPlanner} from "./orchestration/planner.js";
 import type {PlanStep} from "./orchestration/planner.js";
 import {ReviewEngine} from "./review/review-engine.js";
 import {ModelRouter} from "./model/model-router.js";
+import {PostgresPersistence} from "./persistence/postgres-persistence.js";
 import {createStandardAgents} from "./agents/standard-agents.js";
 import type {ModelProvider,ModelRequest} from "./domain/types.js";
 import type {AgentDefinition,BrainRequest,Memory,Project} from "./domain/types.js";
@@ -70,4 +71,6 @@ export class AIBrain {
   completeModel(request:ModelRequest,providerId:string,model:string){return this.models.complete(request,providerId,model)}
   stopAll(){this.policy.stopAll()}
   resume(){this.policy.resume()}
+  persist(persistence:PostgresPersistence){return persistence.flush(this.store)}
+  load(persistence:PostgresPersistence){return persistence.load(this.store)}
 }
