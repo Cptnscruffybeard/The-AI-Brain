@@ -24,6 +24,12 @@ Goal -> classify -> plan -> task graph -> specialist agent -> context compiler -
 
 The model is never the final authority over permissions. External content is treated as data rather than authority. High-impact actions remain behind approval boundaries.
 
+## Personal Brain / AIB layer
+- `src/personal/personal-brain.ts` adapts the existing Brain into a personal workspace without replacing the core architecture.
+- Personal profile, household members, reminders and appointments are isolated by a dedicated project boundary.
+- Preferences are stored through the existing governed memory service, and personal actions emit the same audit events used by the core Brain.
+- The personal layer exposes `ask()` so AIB can use the existing orchestrator, agents, policy engine, memory and tools instead of creating a second AI runtime.
+
 ## Current status
 The runtime foundation is substantially implemented, but production durability and real-world tool adapters are still separate deployment layers. The next major work is PostgreSQL-backed persistence, semantic memory retrieval, real Git/web/code/cloud tools, provider credentials, telemetry, and controlled self-improvement.
 
