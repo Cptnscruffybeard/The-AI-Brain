@@ -5,7 +5,7 @@ export interface BrainHttpOptions{brain?:AIBrain;host?:string;port?:number;persi
 export function createBrainHttpServer(options:BrainHttpOptions={}){
  const brain=options.brain??createConfiguredBrain();
  const persistence=options.persistence;
- const server=createServer(async(req,res)=>{setHeaders(res);try{
+ const server=createServer(async(req,res)=>{setHeaders(res);try{if(req.method!=="GET"&&req.method!=="POST"){res.setHeader("allow","GET, POST");return send(res,405,{error:"method not allowed"})}
   if(req.method==="GET"&&req.url==="/api/health")return send(res,200,{ok:true,projects:brain.store.projects.size,tasks:brain.store.tasks.size,modelProviders:brain.models.list().map(x=>x.id)});
   if(req.method==="GET"&&req.url==="/api/state")return send(res,200,brain.visualSnapshot());
   if(req.method==="POST"&&req.url==="/api/projects"){const body=await jsonBody(req);const name=requiredString(body.name,"name");const project=brain.createProject(name,String(body.description??""));if(persistence)await persistence.flush(brain.store);return send(res,201,project)}
