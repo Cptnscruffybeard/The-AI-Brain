@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: brain
+      POSTGRES_USER: brain
+      POSTGRES_PASSWORD: brain_dev_only
+    ports: ["5432:5432"]
+    volumes:
+      - brain_pg:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+  brain:
+    build: .
+    restart: unless-stopped
+    depends_on: [postgres]
+    environment:
+      PORT: 8787
+      DATABASE_URL: postgresql://brain:brain_dev_only@postgres:5432/brain
+    ports: ["8787:8787"]
+volumes:
+  brain_pg:
