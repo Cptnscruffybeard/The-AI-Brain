@@ -6,7 +6,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "demo": "tsx src/index.ts"
+    "demo": "tsx src/index.ts",
+    "visual": "tsx src/visual/server.ts",
+    "test:security": "vitest run tests/security-100.test.ts",
+    "audit": "npm audit --audit-level=high"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
