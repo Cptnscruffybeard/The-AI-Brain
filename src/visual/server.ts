@@ -17,7 +17,7 @@ export function createBrainVisualServer(brain:AIBrain){
     const body=await readFile(htmlPath,"utf8");
     const nonce=randomBytes(16).toString("base64");
     const html=body.replace("<script>","<script nonce=\""+nonce+"\">");
-    res.writeHead(200,{"content-type":"text/html; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff","content-security-policy:"+"default-src 'none'; script-src 'nonce-"+nonce+"'; style-src 'unsafe-inline'; connect-src 'self'; img-src data:; base-uri 'none'; frame-ancestors 'none'; object-src 'none';"});
+    res.writeHead(200,{"content-type":"text/html; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff","content-security-policy":"default-src 'none'; script-src 'nonce-"+nonce+"'; style-src 'unsafe-inline'; connect-src 'self'; img-src data:; base-uri 'none'; frame-ancestors 'none'; object-src 'none';"});
     res.end(html);return;
    }
    res.writeHead(404,{"content-type":"application/json; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff"});res.end(JSON.stringify({error:"not found"}));
