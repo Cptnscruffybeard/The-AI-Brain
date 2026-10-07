@@ -17,7 +17,7 @@ export class BrainWorker{
   }else ready=this.brain.store.claimReadyTasks(projectId,this.workerId,this.options.leaseMs,this.options.maxConcurrent);
   for(const task of ready){const expiresAt=nowMs+this.options.leaseMs;this.claimed.set(task.id,expiresAt);task.lease={workerId:this.workerId,expiresAt}}
   const results=await Promise.all(ready.map(async task=>{
-   const heartbeat=setInterval(()=>{const expiresAt=Date.now()+this.options.leaseMs;if(this.claimed.has(task.id)){this.claimed.set(task.id,expiresAt);if(task.lease?.workerId===this.workerId)task.lease.expiresAt=expiresAt}},Math.max(250,Math.floor(this.options.leaseMs/3)));
+   const heartbeat=setInterval(()=>{const expiresAt=Date.now()+this.options.leaseMs;if(this.claimed.has(task.id)){this.claimed.set(task.id,expiresAt);if(task.lease?.workerId===this.workerId)task.lease.expiresAt=expiresAt;if(this.persistence)void this.persistence.heartbeatTaskLease(task.id,this.workerId,this.options.leaseMs).catch(()=>{})}},Math.max(250,Math.floor(this.options.leaseMs/3)));
    try{return await this.brain.orchestrator.runTask(task.id)}
    finally{clearInterval(heartbeat);if(this.persistence)await this.persistence.saveTaskLease(task,this.workerId);this.claimed.delete(task.id);this.brain.store.releaseTask(task,this.workerId)}
   }));
