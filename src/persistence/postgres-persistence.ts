@@ -31,6 +31,10 @@ export class PostgresPersistence {
     });
   }
 
+  async heartbeatTaskLease(taskId:string,workerId:string,leaseMs=30000){
+    await this.client.query(HEARTBEAT_TASK_LEASE,[taskId,workerId,new Date(Date.now()+Math.max(1000,leaseMs)).toISOString()]);
+  }
+
   async saveTaskLease(task:Task,workerId:string){
     await this.client.query(RELEASED_TASK_UPDATE,[task.id,task.status,task.assignedAgent??null,task.attempts,json(task.output),task.error??null,task.updatedAt,workerId]);
   }
@@ -91,6 +95,7 @@ SET lease_owner=$2,lease_until=$3,status='running',updated_at=now()
 FROM candidate
 WHERE t.id=candidate.id
 RETURNING t.id`;
+const HEARTBEAT_TASK_LEASE=`UPDATE tasks SET lease_until=$3 WHERE id=$1 AND lease_owner=$2 AND status='running'`;
 const RELEASED_TASK_UPDATE=`UPDATE tasks
 SET status=$2,assigned_agent=$3,attempts=$4,output=$5::jsonb,error=$6,updated_at=$7,lease_owner=NULL,lease_until=NULL
 WHERE id=$1 AND lease_owner=$8`;
