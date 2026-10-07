@@ -169,3 +169,23 @@ it("uses durable lease SQL without trusting malformed task output",async()=>{
   expect(release?.values?.[4]).toBeNull();
 });
 
+
+it("rejects malformed model provider responses",async()=>{
+  const b=new AIBrain();
+  b.registerModelProvider({id:"bad",models:()=>["m"],async complete(){return{text:123 as any,provider:"bad",model:"m"}}});
+  await expect(b.completeModel({messages:[{role:"user",content:"hello"}]},"bad","m")).rejects.toThrow("invalid or oversized response");
+});
+
+it("prevents a model/tool caller from bypassing the allowed tool set",async()=>{
+  const b=new AIBrain();const p=b.createProject("tool-boundary");
+  b.tools.register({name:"read",description:"read",risk:"low",requiredPermissions:["read"],async execute(){return"ok"}});
+  b.tools.register({name:"write",description:"write",risk:"medium",requiredPermissions:["write"],async execute(){return"changed"}});
+  const a:AgentDefinition={...agent(),id:"boundary-agent",canHandle:t=>t.type==="goal",async execute(ctx){
+    await expect(ctx.toolRuntime?.execute("write",{})).rejects.toThrow("not in the task's allowed tool set");
+    return{status:"completed",summary:"ok"};
+  }};
+  b.registerAgent(a);
+  const result=await b.request({projectId:p.id,goal:"boundary test",risk:"medium",permissions:["read"]});
+  expect(result.status).toBe("completed");
+});
+
