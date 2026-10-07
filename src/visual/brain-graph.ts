@@ -28,14 +28,14 @@ function addNode(nodes:BrainVisualNode[],type:BrainVisualNodeType,x:VisualEntity
 }
 export function createBrainVisualGraph(s:BrainVisualSnapshot):BrainVisualGraph{
  const nodes:BrainVisualNode[]=[];const edges:BrainVisualEdge[]=[];
- for(const x of s.projects)addNode(nodes,"project",x,x.name);
- for(const x of s.goals)addNode(nodes,"goal",x,x.text);
- for(const x of s.decisions)addNode(nodes,"decision",x,x.text);
- for(const x of s.memories)addNode(nodes,"memory",x,x.content);
- for(const x of s.artifacts)addNode(nodes,"artifact",x,x.name);
- for(const x of s.tasks)addNode(nodes,"task",x,x.title);
- for(const x of s.events)addNode(nodes,"event",x,x.type);
- for(const x of s.approvals)addNode(nodes,"approval",x,x.action);
+ for(const x of s.projects as Project[])addNode(nodes,"project",x,x.name);
+ for(const x of s.goals as Goal[])addNode(nodes,"goal",x,x.text);
+ for(const x of s.decisions as Decision[])addNode(nodes,"decision",x,x.text);
+ for(const x of s.memories as Memory[])addNode(nodes,"memory",x,x.content);
+ for(const x of s.artifacts as Artifact[])addNode(nodes,"artifact",x,x.name);
+ for(const x of s.tasks as Task[])addNode(nodes,"task",x,x.title);
+ for(const x of s.events as BrainEvent[])addNode(nodes,"event",x,x.type);
+ for(const x of s.approvals as ApprovalRequest[])addNode(nodes,"approval",x,x.action);
 
  const ids=new Set(nodes.map(n=>n.id));const seen=new Set<string>();
  const ref=(type:BrainVisualNodeType,id:string)=>nodeId(type,id);
@@ -45,13 +45,13 @@ export function createBrainVisualGraph(s:BrainVisualSnapshot):BrainVisualGraph{
   const value:BrainVisualEdge={id:key,source,target,type};if(label)value.label=label;edges.push(value);
  };
  for(const n of nodes)if(n.projectId)edge(ref("project",n.projectId),n.id,"project");
- for(const t of s.tasks){
+ for(const t of s.tasks as Task[]){
   for(const dependency of t.dependencies)edge(ref("task",dependency),ref("task",t.id),"dependency","depends on");
   if(t.parentTaskId)edge(ref("task",t.parentTaskId),ref("task",t.id),"parent","parent");
  }
- for(const m of s.memories)if(m.supersededBy)edge(ref("memory",m.id),ref("memory",m.supersededBy),"supersedes","supersedes");
- for(const a of s.approvals)edge(ref("task",a.taskId),ref("approval",a.id),"approval","approval");
- for(const e of s.events){
+ for(const m of s.memories as Memory[])if(m.supersededBy)edge(ref("memory",m.id),ref("memory",m.supersededBy),"supersedes","supersedes");
+ for(const a of s.approvals as ApprovalRequest[])edge(ref("task",a.taskId),ref("approval",a.id),"approval","approval");
+ for(const e of s.events as BrainEvent[]){
   if(e.taskId)edge(ref("event",e.id),ref("task",e.taskId),"event","task event");
   for(const [key,type] of [["memoryId","memory"],["decisionId","decision"],["goalId","goal"],["artifactId","artifact"]] as const){
    const value=e.data[key];if(typeof value==="string")edge(ref("event",e.id),ref(type,value),"reference","references");
