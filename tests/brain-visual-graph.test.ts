@@ -9,5 +9,5 @@ describe("brain visual graph",()=>{it("builds governed relationships without mut
  const graph=createBrainVisualGraph(createBrainVisualSnapshot(store));
  expect(graph.nodes).toHaveLength(3); expect(graph.edges.filter(e=>e.type==="dependency")).toHaveLength(1);
  expect(graph.edges.filter(e=>e.type==="parent")).toHaveLength(1); expect(graph.edges.filter(e=>e.type==="project")).toHaveLength(2);
- expect(store.tasks.get("b")?.dependencies).toEqual(["a"]);
+ expect(store.tasks.get("b")?.dependencies).toEqual(["a"]);\n    (store.tasks.get("b") as any).output={secret:"must not escape"};\n    const taskNode=graph.nodes.find(n=>n.id==="b")!;\n    expect(taskNode.metadata).not.toHaveProperty("output");
 });});
