@@ -18,6 +18,7 @@ import {PostgresPersistence} from "./persistence/postgres-persistence.js";
 import {createStandardAgents} from "./agents/standard-agents.js";
 import type {ModelProvider,ModelRequest} from "./domain/types.js";
 import type {AgentDefinition,BrainRequest,Memory,Project} from "./domain/types.js";
+import {createBrainVisualSnapshot} from "./visual/brain-snapshot.js";
 
 export class AIBrain {
   readonly store=new BrainStore();
@@ -76,4 +77,5 @@ export class AIBrain {
   resume(){this.policy.resume()}
   persist(persistence:PostgresPersistence){return persistence.flush(this.store)}
   load(persistence:PostgresPersistence){return persistence.load(this.store)}
+  visualSnapshot(){return createBrainVisualSnapshot(this.store)}
 }
