@@ -23,6 +23,18 @@ export class PostgresPersistence {
     });
   }
 
+  async claimReadyTaskIds(projectId:string,workerId:string,leaseMs=30000,limit=1):Promise<string[]>{
+    const leaseUntil=new Date(Date.now()+Math.max(1000,leaseMs)).toISOString();
+    return this.client.transaction(async tx=>{
+      const result=await tx.query(CLAIM_READY_TASKS,[projectId,workerId,leaseUntil,Math.max(1,limit)]);
+      return result.rows.map(row=>String(row.id));
+    });
+  }
+
+  async saveTaskLease(task:Task,workerId:string){
+    await this.client.query(RELEASED_TASK_UPDATE,[task.id,task.status,task.assignedAgent??null,task.attempts,json(task.output),task.error??null,task.updatedAt,workerId]);
+  }
+
   async load(store:BrainStore){
     const [projects,goals,memories,decisions,artifacts,tasks,approvals,events]=await Promise.all([
       this.client.query(PROJECT_SELECT),this.client.query(GOAL_SELECT),this.client.query(MEMORY_SELECT),this.client.query(DECISION_SELECT),
@@ -57,6 +69,31 @@ const ARTIFACT_SELECT="SELECT * FROM artifacts";
 const TASK_SELECT="SELECT * FROM tasks ORDER BY created_at";
 const APPROVAL_SELECT="SELECT * FROM approvals ORDER BY created_at";
 const EVENT_SELECT="SELECT * FROM brain_events ORDER BY timestamp";
+const CLAIM_READY_TASKS=`WITH expired AS (
+  UPDATE tasks SET status='queued',lease_owner=NULL,lease_until=NULL,updated_at=now()
+  WHERE project_id=$1 AND status='running' AND lease_until < now()
+  RETURNING id
+), candidate AS (
+  SELECT t.id FROM tasks t
+  WHERE t.project_id=$1 AND t.status='queued'
+    AND (t.lease_until IS NULL OR t.lease_until < now())
+    AND NOT EXISTS (
+      SELECT 1 FROM tasks dependency
+      WHERE dependency.id IN (SELECT jsonb_array_elements_text(t.dependencies))
+        AND dependency.status <> 'completed'
+    )
+  ORDER BY t.created_at
+  FOR UPDATE SKIP LOCKED
+  LIMIT $4
+)
+UPDATE tasks t
+SET lease_owner=$2,lease_until=$3,status='running',updated_at=now()
+FROM candidate
+WHERE t.id=candidate.id
+RETURNING t.id`;
+const RELEASED_TASK_UPDATE=`UPDATE tasks
+SET status=$2,assigned_agent=$3,attempts=$4,output=$5::jsonb,error=$6,updated_at=$7,lease_owner=NULL,lease_until=NULL
+WHERE id=$1 AND lease_owner=$8`;
 
 const json=(value:unknown)=>value===undefined?null:JSON.stringify(value);
 const projectValues=(x:Project)=>[x.id,x.name,x.description,x.status,x.createdAt,x.updatedAt];
