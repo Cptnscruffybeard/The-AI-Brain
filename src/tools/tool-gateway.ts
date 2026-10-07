@@ -3,6 +3,9 @@ import type {BrainStore} from "../core/store.js";
 import type {PolicyEngine} from "../policy/policy-engine.js";
 import {id,now} from "../core/id.js";
 
+const MAX_TOOL_INPUT_CHARS=100_000;
+const MAX_TOOL_OUTPUT_CHARS=500_000;
+
 export class ToolGateway {
   private tools=new Map<string,ToolDefinition>();
 
@@ -35,12 +38,16 @@ export class ToolGateway {
     const tool=this.tools.get(r.toolName);
     if(!tool)throw new Error("Unknown tool: "+r.toolName);
 
+    const inputSize=serializedSize(r.input);
+    if(inputSize>MAX_TOOL_INPUT_CHARS)throw new Error("Tool input is too large.");
+
     const permissions=tool.requiredPermissions;
     const decision=this.policy.evaluateTool({...r,permissions,risk:tool.risk},a.authority,tool.risk,a.permissions);
     this.store.events.push({id:id(),type:decision.allowed?"tool.allowed":"tool.blocked",timestamp:now(),projectId:task.projectId,taskId:r.taskId,actor:a.id,data:{tool:r.toolName,reason:decision.reason}});
     if(!decision.allowed)throw new Error("Tool blocked by policy: "+decision.reason);
 
     const result=await tool.execute(r.input);
+    if(serializedSize(result)>MAX_TOOL_OUTPUT_CHARS)throw new Error("Tool output is too large.");
     this.store.events.push({id:id(),type:"tool.completed",timestamp:now(),projectId:task.projectId,taskId:r.taskId,actor:a.id,data:{tool:r.toolName}});
     return result;
   }
@@ -60,4 +67,11 @@ export class ToolGateway {
 function toolRiskAbove(toolRisk:Task["risk"],taskRisk:Task["risk"]){
   const rank={low:0,medium:1,high:2,critical:3};
   return rank[toolRisk]>rank[taskRisk];
+}
+
+function serializedSize(value:unknown){
+  if(typeof value==="string")return value.length;
+  const serialized=JSON.stringify(value);
+  if(serialized===undefined)return 0;
+  return serialized.length;
 }
