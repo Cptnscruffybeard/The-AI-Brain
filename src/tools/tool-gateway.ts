@@ -2,25 +2,18 @@ import type {AgentDefinition,Task,ToolDefinition,ToolRequest} from "../domain/ty
 import type {BrainStore} from "../core/store.js";
 import type {PolicyEngine} from "../policy/policy-engine.js";
 import {id,now} from "../core/id.js";
-
 export class ToolGateway {
   private tools=new Map<string,ToolDefinition>();
   constructor(private store:BrainStore,private policy:PolicyEngine){}
   register(t:ToolDefinition){if(this.tools.has(t.name))throw new Error("Tool already exists: "+t.name);this.tools.set(t.name,t)}
   list(){return[...this.tools.values()]}
   allowedFor(task:Task,agent:AgentDefinition){
-    return this.list().filter(tool=>{
-      if(tool.risk==="critical" || toolRiskAbove(tool.risk,task.risk)) return false;
-      const agentHas=tool.requiredPermissions.every(p=>agent.permissions.includes(p));
-      const taskAllows=tool.requiredPermissions.every(p=>task.permissions.includes(p));
-      return agentHas&&taskAllows;
-    }).map(t=>t.name);
+    return this.list().filter(tool=>tool.risk!=="critical"&&!toolRiskAbove(tool.risk,task.risk)&&tool.requiredPermissions.every(p=>agent.permissions.includes(p)&&task.permissions.includes(p))).map(t=>t.name);
   }
   async execute(r:ToolRequest,a:AgentDefinition){
-    const tool=this.tools.get(r.toolName);
-    if(!tool)throw new Error("Unknown tool: "+r.toolName);
+    const tool=this.tools.get(r.toolName);if(!tool)throw new Error("Unknown tool: "+r.toolName);
     const permissions=tool.requiredPermissions;
-    const decision=this.policy.evaluateTool({...r,permissions,risk:tool.risk},a.authority,tool.risk);
+    const decision=this.policy.evaluateTool({...r,permissions,risk:tool.risk},a.authority,tool.risk,a.permissions);
     this.store.events.push({id:id(),type:decision.allowed?"tool.allowed":"tool.blocked",timestamp:now(),taskId:r.taskId,actor:a.id,data:{tool:r.toolName,reason:decision.reason}});
     if(!decision.allowed)throw new Error("Tool blocked by policy: "+decision.reason);
     const result=await tool.execute(r.input);
@@ -32,7 +25,4 @@ export class ToolGateway {
     return {allowedTools:allowed,execute:(toolName:string,input:unknown)=>this.execute({taskId:task.id,agentId:agent.id,toolName,permissions:[],taskPermissions:task.permissions,risk:task.risk,input},agent)};
   }
 }
-function toolRiskAbove(toolRisk:Task["risk"],taskRisk:Task["risk"]){
-  const rank={low:0,medium:1,high:2,critical:3};
-  return rank[toolRisk]>rank[taskRisk];
-}
+function toolRiskAbove(toolRisk:Task["risk"],taskRisk:Task["risk"]){const rank={low:0,medium:1,high:2,critical:3};return rank[toolRisk]>rank[taskRisk]}
