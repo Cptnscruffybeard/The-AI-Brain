@@ -7,9 +7,13 @@ export interface BrainVisualNode { id:string; type:BrainVisualNodeType; label:st
 export interface BrainVisualEdge { id:string; source:string; target:string; type:BrainVisualEdgeType; label?:string; }
 export interface BrainVisualGraph { version:1; generatedAt:string; nodes:BrainVisualNode[]; edges:BrainVisualEdge[]; }
 
+function metadataFor(type:BrainVisualNodeType,x:any):Record<string,unknown>{
+ const allowed:Record<BrainVisualNodeType,string[]>={project:["id","name","description","status"],goal:["id","projectId","text","risk","createdAt"],decision:["id","projectId","text","rationale","status","createdAt"],memory:["id","projectId","type","content","tags","source","confidence","importance","createdAt","supersededBy"],artifact:["id","projectId","name","uri","kind"],task:["id","projectId","parentTaskId","title","description","type","status","dependencies","assignedAgent","risk","permissions","acceptanceCriteria","attempts","createdAt","updatedAt"],event:["id","type","timestamp","projectId","taskId","actor","data"],approval:["id","taskId","projectId","action","reason","risk","status","requestedBy","decidedBy","createdAt","decidedAt"]};
+ const out:Record<string,unknown>={}; for(const key of allowed[type]||[]) if(key in x) out[key]=x[key]; return out;
+}
 export function createBrainVisualGraph(s:BrainVisualSnapshot):BrainVisualGraph {
  const nodes:BrainVisualNode[]=[]; const edges:BrainVisualEdge[]=[];
- const add=(type:BrainVisualNodeType,items:any[],label:(x:any)=>string)=>{for(const x of items)nodes.push({id:x.id,type,label:label(x),projectId:x.projectId,status:x.status,metadata:x});};
+ const add=(type:BrainVisualNodeType,items:any[],label:(x:any)=>string)=>{for(const x of items)nodes.push({id:x.id,type,label:label(x),projectId:x.projectId,status:x.status,metadata:metadataFor(type,x)});};
  add("project",s.projects,x=>x.name); add("goal",s.goals,x=>x.text); add("decision",s.decisions,x=>x.text);
  add("memory",s.memories,x=>x.content); add("artifact",s.artifacts,x=>x.name); add("task",s.tasks,x=>x.title);
  add("event",s.events,x=>x.type); add("approval",s.approvals,x=>x.action);
