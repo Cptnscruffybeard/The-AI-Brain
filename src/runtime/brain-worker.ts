@@ -1,6 +1,7 @@
 import {id,now} from "../core/id.js";
 import type {BrainEvent,AgentResult,Task} from "../domain/types.js";
 import type {AIBrain} from "../brain.js";
+import type {PostgresPersistence} from "../persistence/postgres-persistence.js";
 export interface BrainWorkerOptions{workerId?:string;maxConcurrent?:number;leaseMs?:number;maxTicks?:number}
 export interface WorkerTickResult{claimed:number;completed:number;failed:number;blocked:number;recovered:number}
 export class BrainWorker{
