@@ -75,7 +75,7 @@ export class AIBrain {
   completeModel(request:ModelRequest,providerId:string,model:string){return this.models.complete(request,providerId,model)}
   stopAll(){this.policy.stopAll()}
   resume(){this.policy.resume()}
-  persist(persistence:PostgresPersistence){return persistence.flush(this.store)}
-  load(persistence:PostgresPersistence){return persistence.load(this.store)}
+  persist(persistence:PostgresPersistence){this.worker.attachPersistence(persistence);return persistence.flush(this.store)}
+  load(persistence:PostgresPersistence){this.worker.attachPersistence(persistence);return persistence.load(this.store)}
   visualSnapshot(){return createBrainVisualSnapshot(this.store)}
 }
