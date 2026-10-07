@@ -94,6 +94,8 @@ export function createBrainHttpServer(options:BrainHttpOptions={}){
    return send(res,status,{error:error instanceof Error?error.message:"Request failed."});
   }
  });
+ server.requestTimeout=30_000;
+ server.headersTimeout=10_000;
  return {
   brain,server,
   listen:()=>new Promise<void>(resolve=>server.listen(options.port??Number(process.env.PORT||8787),host,()=>resolve()))
@@ -149,6 +151,7 @@ function consumeRate(req:IncomingMessage,res:ServerResponse,path:string,states:M
  const key=String(req.socket.remoteAddress??"unknown");
  const now=Date.now();
  let state=states.get(key);
+ if(states.size>10_000){for(const [k,v] of states){if(now-v.windowStart>=RATE_WINDOW_MS)states.delete(k);if(states.size<=9_000)break}}
  if(!state||now-state.windowStart>=RATE_WINDOW_MS){state={windowStart:now,count:0,drainCount:0};states.set(key,state)}
  state.count++;
  if(path==="/api/worker/drain")state.drainCount++;
