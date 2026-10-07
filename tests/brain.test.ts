@@ -165,7 +165,7 @@ it("uses durable lease SQL without trusting malformed task output",async()=>{
   } as any,"worker");
   expect(calls.some(x=>x.sql.includes("FOR UPDATE SKIP LOCKED"))).toBe(true);
   expect(calls.some(x=>x.sql.startsWith("UPDATE tasks SET lease_until"))).toBe(true);
-  const release=calls.find(x=>x.sql.startsWith("UPDATE tasks"));
+  const release=calls.find(x=>x.sql.includes("lease_owner=$8"));
   expect(release?.values?.[4]).toBeNull();
 });
 
