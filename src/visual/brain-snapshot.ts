@@ -1,16 +1,17 @@
+import type {Artifact,ApprovalRequest,BrainEvent,Decision,Goal,Memory,Project,Task} from "../domain/types.js";
 import type {BrainStore} from "../core/store.js";
 
 export interface BrainVisualSnapshot {
   version: 1;
   generatedAt: string;
-  projects: unknown[];
-  goals: unknown[];
-  decisions: unknown[];
-  memories: unknown[];
-  artifacts: unknown[];
-  tasks: unknown[];
-  events: unknown[];
-  approvals: unknown[];
+  projects: Project[];
+  goals: Goal[];
+  decisions: Decision[];
+  memories: Memory[];
+  artifacts: Artifact[];
+  tasks: Task[];
+  events: BrainEvent[];
+  approvals: ApprovalRequest[];
 }
 
 export function createBrainVisualSnapshot(store: BrainStore): BrainVisualSnapshot {
