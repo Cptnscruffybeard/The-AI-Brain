@@ -1,0 +1,8 @@
+import type {ModelProvider,ModelRequest,ModelResponse} from "../domain/types.js";
+export interface OpenAICompatibleOptions{apiKey:string;baseUrl?:string;models:string[];timeoutMs?:number}
+export class OpenAICompatibleProvider implements ModelProvider{
+ readonly id="openai-compatible"; private readonly baseUrl:string; private readonly timeoutMs:number;
+ constructor(private readonly options:OpenAICompatibleOptions){if(!options.apiKey)throw new Error("API key is required.");if(!options.models.length)throw new Error("At least one model is required.");this.baseUrl=(options.baseUrl??"https://api.openai.com/v1").replace(/\/$/,"");this.timeoutMs=Math.max(1000,options.timeoutMs??60000)}
+ models(){return [...this.options.models]}
+ async complete(request:ModelRequest,model:string):Promise<ModelResponse>{const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),this.timeoutMs);try{const response=await fetch(this.baseUrl+"/chat/completions",{method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+this.options.apiKey},body:JSON.stringify({model,messages:request.messages,temperature:request.temperature,max_tokens:request.maxTokens}),signal:controller.signal});if(!response.ok)throw new Error("Model provider HTTP "+response.status+": "+(await response.text()).slice(0,1000));const body=await response.json() as any;const text=body?.choices?.[0]?.message?.content;if(typeof text!=="string")throw new Error("Model provider returned no text.");return{text,provider:this.id,model,usage:{inputTokens:body.usage?.prompt_tokens,outputTokens:body.usage?.completion_tokens}}}finally{clearTimeout(timer)}}
+}
