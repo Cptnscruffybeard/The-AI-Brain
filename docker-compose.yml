@@ -5,18 +5,28 @@ services:
     environment:
       POSTGRES_DB: brain
       POSTGRES_USER: brain
-      POSTGRES_PASSWORD: brain_dev_only
-    ports: ["5432:5432"]
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     volumes:
       - brain_pg:/var/lib/postgresql/data
       - ./db/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+    networks: [brain_internal]
   brain:
     build: .
     restart: unless-stopped
-    depends_on: [postgres]
+    depends_on:
+      - postgres
     environment:
       PORT: 8787
-      DATABASE_URL: postgresql://brain:brain_dev_only@postgres:5432/brain
-    ports: ["8787:8787"]
+      DATABASE_URL: postgresql://brain:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/brain
+      BRAIN_API_KEY: ${BRAIN_API_KEY:?BRAIN_API_KEY must be set}
+      BRAIN_API_PERMISSIONS: ${BRAIN_API_PERMISSIONS:-read,write,execute}
+      BRAIN_API_RISK_CEILING: ${BRAIN_API_RISK_CEILING:-high}
+    networks: [brain_internal]
+    # Deliberately not published to the host. Use an explicit override/proxy
+    # when external access is required.
+networks:
+  brain_internal:
+    driver: bridge
+    internal: true
 volumes:
   brain_pg:
