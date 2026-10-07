@@ -1,4 +1,5 @@
 import {createServer,type IncomingMessage,type ServerResponse} from "node:http";
+import {randomBytes} from "node:crypto";
 import {readFile} from "node:fs/promises";
 import {fileURLToPath} from "node:url";
 import {dirname,join} from "node:path";
@@ -12,7 +13,13 @@ export function createBrainVisualServer(brain:AIBrain){
    const path=new URL(req.url??"/","http://127.0.0.1").pathname;
    if(req.method!=="GET"){res.writeHead(405,{"content-type":"application/json; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff","allow":"GET"});res.end(JSON.stringify({error:"method not allowed"}));return}
    if(path==="/api/brain/graph"){const out=brainGraphResponse(brain);res.writeHead(out.status,out.headers);res.end(out.body);return}
-   if(path==="/"||path==="/brain-map.html"){const body=await readFile(htmlPath);res.writeHead(200,{"content-type":"text/html; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff","content-security-policy":"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src data:;"});res.end(body);return}
+   if(path==="/"||path==="/brain-map.html"){
+    const body=await readFile(htmlPath,"utf8");
+    const nonce=randomBytes(16).toString("base64");
+    const html=body.replace("<script>","<script nonce=\""+nonce+"\">");
+    res.writeHead(200,{"content-type":"text/html; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff","content-security-policy:"+"default-src 'none'; script-src 'nonce-"+nonce+"'; style-src 'unsafe-inline'; connect-src 'self'; img-src data:; base-uri 'none'; frame-ancestors 'none'; object-src 'none';"});
+    res.end(html);return;
+   }
    res.writeHead(404,{"content-type":"application/json; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff"});res.end(JSON.stringify({error:"not found"}));
   }catch{res.writeHead(500,{"content-type":"application/json; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff"});res.end(JSON.stringify({error:"internal server error"}))}
  });
