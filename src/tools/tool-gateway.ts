@@ -30,6 +30,7 @@ export class ToolGateway {
     const task=this.store.getTask(r.taskId);
     if(!task)throw new Error("Unknown task: "+r.taskId);
     if(task.assignedAgent&&task.assignedAgent!==a.id)throw new Error("Agent is not assigned to the task.");
+    if(task.status!=="running")throw new Error("Tools may only be executed for a running task.");
     if(r.taskPermissions.some(p=>!task.permissions.includes(p)))throw new Error("Tool request exceeds the task permission envelope.");
     const tool=this.tools.get(r.toolName);
     if(!tool)throw new Error("Unknown tool: "+r.toolName);
