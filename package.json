@@ -9,7 +9,9 @@
     "demo": "tsx src/index.ts",
     "visual": "tsx src/visual/server.ts",
     "test:security": "vitest run tests/security-100.test.ts",
-    "audit": "npm audit --audit-level=high"
+    "audit": "npm audit --audit-level=high",
+    "start": "node dist/runtime/serve.js",
+    "start:dev": "tsx src/runtime/serve.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
