@@ -2,7 +2,7 @@ import {describe,expect,it} from "vitest";
 import {createBrainHttpServer} from "../src/runtime/http-server.js";
 
 async function start(options:Parameters<typeof createBrainHttpServer>[0]){
- const app=createBrainHttpServer(options);
+ const app=createBrainHttpServer({...options,port:0});
  await app.listen();
  const address=app.server.address();
  if(!address||typeof address==="string")throw new Error("server did not bind");
