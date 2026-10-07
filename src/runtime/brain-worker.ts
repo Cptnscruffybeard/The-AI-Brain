@@ -44,7 +44,7 @@ export class BrainWorker{
 
   if(this.persistence){
    const ids=await this.persistence.claimReadyTaskIds(projectId,this.workerId,this.options.leaseMs,this.options.maxConcurrent);
-   ready.push(...ids.map(taskId=>this.brain.store.getTask(taskId)).filter((t):t is Task=>!!t));
+   ready.push(...ids.map(taskId=>this.brain.store.getTask(taskId)).filter((t):t is Task=>!!t).map(t=>{t.status="queued";t.updatedAt=now();return t;}));
   }else ready.push(...this.brain.store.claimReadyTasks(projectId,this.workerId,this.options.leaseMs,this.options.maxConcurrent));
 
   const results=await Promise.all(ready.map(async task=>{
