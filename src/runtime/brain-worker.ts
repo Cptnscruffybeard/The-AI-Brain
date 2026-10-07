@@ -5,15 +5,23 @@ import type {PostgresPersistence} from "../persistence/postgres-persistence.js";
 export interface BrainWorkerOptions{workerId?:string;maxConcurrent?:number;leaseMs?:number;maxTicks?:number}
 export interface WorkerTickResult{claimed:number;completed:number;failed:number;blocked:number;recovered:number}
 export class BrainWorker{
- readonly workerId:string;private running=false;private readonly options:Required<Omit<BrainWorkerOptions,"workerId">>;
+ readonly workerId:string;private running=false;private persistence?:PostgresPersistence;private readonly options:Required<Omit<BrainWorkerOptions,"workerId">>;
  constructor(private brain:AIBrain,options:BrainWorkerOptions={}){this.workerId=options.workerId??id();this.options={maxConcurrent:Math.max(1,options.maxConcurrent??2),leaseMs:Math.max(1000,options.leaseMs??30000),maxTicks:Math.max(1,options.maxTicks??100)}}
+ attachPersistence(persistence:PostgresPersistence){this.persistence=persistence;return this}
  async tick(projectId:string):Promise<WorkerTickResult>{
-  const nowMs=Date.now();let recovered=0;
-  for(const task of this.brain.store.projectTasks(projectId)){if(task.status==="running"&&task.lease&&task.lease.expiresAt<=nowMs){delete task.lease;task.status="queued";task.error="Recovered from expired worker lease.";task.updatedAt=now();this.emit("worker.task.recovered",task,{workerId:this.workerId});recovered++}}
-  const ready=this.brain.store.claimReadyTasks(projectId,this.workerId,this.options.leaseMs,this.options.maxConcurrent);
+  const nowMs=Date.now();let recovered=0;let ready:Task[]=[];
+  if(this.persistence){
+   const ids=await this.persistence.claimReadyTaskIds(projectId,this.workerId,this.options.leaseMs,this.options.maxConcurrent);
+   ready=ids.map(taskId=>this.brain.store.getTask(taskId)).filter((t):t is Task=>!!t);
+   for(const task of ready)task.lease={workerId:this.workerId,expiresAt:nowMs+this.options.leaseMs};
+  }else{
+   for(const task of this.brain.store.projectTasks(projectId)){if(task.status==="running"&&task.lease&&task.lease.expiresAt<=nowMs){delete task.lease;task.status="queued";task.error="Recovered from expired worker lease.";task.updatedAt=now();this.emit("worker.task.recovered",task,{workerId:this.workerId});recovered++}}
+   ready=this.brain.store.claimReadyTasks(projectId,this.workerId,this.options.leaseMs,this.options.maxConcurrent);
+  }
   const results=await Promise.all(ready.map(async task=>{
-    const heartbeat=setInterval(()=>{if(task.lease?.workerId===this.workerId)task.lease.expiresAt=Date.now()+this.options.leaseMs},Math.max(250,Math.floor(this.options.leaseMs/3)));
-    try{return await this.brain.orchestrator.runTask(task.id)}finally{clearInterval(heartbeat);this.brain.store.releaseTask(task,this.workerId)}
+   const heartbeat=setInterval(()=>{if(task.lease?.workerId===this.workerId)task.lease.expiresAt=Date.now()+this.options.leaseMs},Math.max(250,Math.floor(this.options.leaseMs/3)));
+   try{return await this.brain.orchestrator.runTask(task.id)}
+   finally{clearInterval(heartbeat);if(this.persistence)await this.persistence.saveTaskLease(task,this.workerId);this.brain.store.releaseTask(task,this.workerId)}
   }));
   let completed=0,failed=0,blocked=0;for(const result of results){if(result.status==="completed")completed++;else if(result.status==="failed")failed++;else blocked++}
   return{claimed:ready.length,completed,failed,blocked,recovered};
@@ -25,21 +33,4 @@ export class BrainWorker{
  async wake(){for(const projectId of this.brain.store.projects.keys())await this.tick(projectId)}
  private hasRunnableWork(projectId:string){return this.brain.store.projectTasks(projectId).some(t=>t.status==="queued"&&(!t.lease||t.lease.expiresAt<=Date.now())&&t.dependencies.every(d=>this.brain.store.getTask(d)?.status==="completed"))}
  private emit(type:string,task:Task,data:Record<string,unknown>){const event:BrainEvent={id:id(),type,timestamp:now(),projectId:task.projectId,taskId:task.id,actor:"worker:"+this.workerId,data};this.brain.store.events.push(event)}
-}  async tick(projectId:string):Promise<WorkerTickResult>{
-    const nowMs=Date.now();let recovered=0;let ready:Task[]=[];
-    if(this.persistence){
-      const ids=await this.persistence.claimReadyTaskIds(projectId,this.workerId,this.options.leaseMs,this.options.maxConcurrent);
-      ready=ids.map(taskId=>this.brain.store.getTask(taskId)).filter((t):t is Task=>!!t);
-      for(const task of ready)task.lease={workerId:this.workerId,expiresAt:nowMs+this.options.leaseMs};
-    }else{
-      for(const task of this.brain.store.projectTasks(projectId)){if(task.status==="running"&&task.lease&&task.lease.expiresAt<=nowMs){delete task.lease;task.status="queued";task.error="Recovered from expired worker lease.";task.updatedAt=now();this.emit("worker.task.recovered",task,{workerId:this.workerId});recovered++}}
-      ready=this.brain.store.claimReadyTasks(projectId,this.workerId,this.options.leaseMs,this.options.maxConcurrent);
-    }
-    const results=await Promise.all(ready.map(async task=>{
-      const heartbeat=setInterval(()=>{if(task.lease?.workerId===this.workerId)task.lease.expiresAt=Date.now()+this.options.leaseMs},Math.max(250,Math.floor(this.options.leaseMs/3)));
-      try{return await this.brain.orchestrator.runTask(task.id)}
-      finally{clearInterval(heartbeat);if(this.persistence)await this.persistence.saveTaskLease(task,this.workerId);this.brain.store.releaseTask(task,this.workerId)}
-    }));
-    let completed=0,failed=0,blocked=0;for(const result of results){if(result.status==="completed")completed++;else if(result.status==="failed")failed++;else blocked++}
-    return{claimed:ready.length,completed,failed,blocked,recovered};
-  }
+}
