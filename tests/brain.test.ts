@@ -153,7 +153,7 @@ it("uses durable lease SQL without trusting malformed task output",async()=>{
   const {PostgresPersistence}=await import("../src/persistence/postgres-persistence.js");
   const calls:{sql:string;values:readonly unknown[]|undefined}[]=[];
   const client:any={
-    async query(text:string,values?:readonly unknown[]){calls.push({sql:text,values});return{rows:text.startsWith("WITH expired")?[{id:"task-1"}]:[]};},
+    async query(text:string,values?:readonly unknown[]){calls.push({sql:text,values});return{rows:text.startsWith("WITH expired")||text.startsWith("UPDATE tasks SET lease_until")||text.startsWith("UPDATE tasks")?[{id:"task-1"}]:[]};},
     async transaction(work:(tx:any)=>Promise<unknown>){return work(this);}
   };
   const persistence=new PostgresPersistence(client);
