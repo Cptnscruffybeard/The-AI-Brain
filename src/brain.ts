@@ -78,4 +78,5 @@ export class AIBrain {
   persist(persistence:PostgresPersistence){this.worker.attachPersistence(persistence);return persistence.flush(this.store)}
   load(persistence:PostgresPersistence){this.worker.attachPersistence(persistence);return persistence.load(this.store)}
   visualSnapshot(){return createBrainVisualSnapshot(this.store)}
+  visualGraph(){return createBrainVisualGraph(this.visualSnapshot())}
 }
