@@ -19,6 +19,7 @@ import {createStandardAgents} from "./agents/standard-agents.js";
 import type {ModelProvider,ModelRequest} from "./domain/types.js";
 import type {AgentDefinition,BrainRequest,Memory,Project} from "./domain/types.js";
 import {createBrainVisualSnapshot} from "./visual/brain-snapshot.js";
+import {createBrainVisualGraph} from "./visual/brain-graph.js";
 
 export class AIBrain {
   readonly store=new BrainStore();
