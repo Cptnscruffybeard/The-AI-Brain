@@ -17,7 +17,7 @@ import {ModelRouter} from "./model/model-router.js";
 import {PostgresPersistence} from "./persistence/postgres-persistence.js";
 import {createStandardAgents} from "./agents/standard-agents.js";
 import type {ModelProvider,ModelRequest} from "./domain/types.js";
-import type {AgentDefinition,BrainRequest,Memory,Project} from "./domain/types.js";
+import type {AgentDefinition,BrainRequest,Memory,Project,Task} from "./domain/types.js";
 import {createBrainVisualSnapshot} from "./visual/brain-snapshot.js";
 import {createBrainVisualGraph} from "./visual/brain-graph.js";
 
@@ -46,11 +46,19 @@ export class AIBrain {
       return missing.length?{severity:"warning",message:"Acceptance criteria were not explicitly referenced in the result: "+missing.join("; "),source:"acceptance-gate"}:undefined;
     });
     this.tools=new ToolGateway(this.store,this.policy);
+    this.registerCoreTools();
     this.taskGraph=new TaskGraph(this.store);
     this.planner=new TaskPlanner(this.store);
     this.orchestrator=new Orchestrator(this.store,this.agents,this.policy,new ContextCompiler(this.store),this.approvals,this.reviews,this.tools);
     this.scheduler=new TaskScheduler(this);
     this.worker=new BrainWorker(this);
+  }
+
+  private registerCoreTools(){
+    this.tools.register({name:"task.inspect",description:"Inspect the current task and its safe execution state.",risk:"low",requiredPermissions:["read"],execute:async(input)=>{const id=typeof input==="object"&&input!==null&&"taskId" in input?String((input as {taskId:unknown}).taskId):"";const task=this.store.getTask(id);if(!task)throw new Error("Unknown task.");return {id:task.id,title:task.title,description:task.description,status:task.status,risk:task.risk,permissions:task.permissions,acceptanceCriteria:task.acceptanceCriteria,attempts:task.attempts,dependencies:task.dependencies};}});
+    this.tools.register({name:"project.inspect",description:"Inspect the current project metadata.",risk:"low",requiredPermissions:["read"],execute:async(input)=>{const id=typeof input==="object"&&input!==null&&"projectId" in input?String((input as {projectId:unknown}).projectId):"";const project=this.store.getProject(id);if(!project)throw new Error("Unknown project.");return project;}});
+    this.tools.register({name:"memory.search",description:"Search governed project memory.",risk:"low",requiredPermissions:["read"],execute:async(input)=>{const q=typeof input==="object"&&input!==null&&"query" in input?String((input as {query:unknown}).query):"";const projectId=typeof input==="object"&&input!==null&&"projectId" in input?String((input as {projectId:unknown}).projectId):"";return this.memory.retrieve(projectId,q,12).map(m=>({id:m.id,type:m.type,content:m.content,tags:m.tags,confidence:m.confidence,importance:m.importance}));}});
+    this.tools.register({name:"memory.remember",description:"Store a governed project memory.",risk:"medium",requiredPermissions:["write"],execute:async(input)=>{if(!input||typeof input!=="object")throw new Error("Object input required.");const x=input as Record<string,unknown>;return this.remember({projectId:typeof x.projectId==="string"?x.projectId:undefined,type:(x.type as Memory["type"])??"fact",content:String(x.content??""),tags:Array.isArray(x.tags)?x.tags.map(String):[],source:String(x.source??"agent"),confidence:Number(x.confidence??0.7),importance:Number(x.importance??0.5)});}});
   }
 
   createProject(name:string,description=""){
