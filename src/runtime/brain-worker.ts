@@ -24,7 +24,7 @@ export class BrainWorker{
   let completed=0,failed=0,blocked=0;for(const result of results){if(result.status==="completed")completed++;else if(result.status==="failed")failed++;else blocked++}
   return{claimed:ready.length,completed,failed,blocked,recovered};
  }
- async runUntilIdle(projectId:string,maxTicks=this.options.maxTicks):Promise<AgentResult[]>{const results:AgentResult[]=[];for(let i=0;i<maxTicks;i++){const tick=await this.tick(projectId);if(!tick.claimed&&!tick.recovered)break;if(!this.hasRunnableWork(projectId))break}return results}
+ async runUntilIdle(projectId:string,maxTicks=this.options.maxTicks):Promise<AgentResult[]>{const results:AgentResult[]=[];for(let i=0;i<maxTicks;i++){const before=new Map(this.brain.store.projectTasks(projectId).map(t=>[t.id,t.status]));const tick=await this.tick(projectId);for(const task of this.brain.store.projectTasks(projectId)){if(before.get(task.id)!==task.status&&(task.status==="completed"||task.status==="failed"||task.status==="blocked"))results.push({status:task.status==="completed"?"completed":task.status==="failed"?"failed":"blocked",summary:task.error??("Worker completed task: "+task.title),output:task.output})}if(!tick.claimed&&!tick.recovered)break;if(!this.hasRunnableWork(projectId))break}return results}
  async start(projectId:string,intervalMs=1000):Promise<void>{if(this.running)return;this.running=true;while(this.running){await this.tick(projectId);if(this.running)await new Promise(resolve=>setTimeout(resolve,Math.max(50,intervalMs)))}}
  stop(){this.running=false}
  claimedTasks():string[]{return[...this.claimed.keys()]}
