@@ -1,0 +1,1 @@
+import {createBrainHttpServer} from "./http-server.js"; const app=createBrainHttpServer(); await app.listen(); console.log("AI Brain listening on http://127.0.0.1:"+Number(process.env.PORT||8787));
