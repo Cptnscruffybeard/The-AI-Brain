@@ -66,6 +66,8 @@ CREATE TABLE IF NOT EXISTS tasks (
   attempts integer NOT NULL DEFAULT 0,
   output jsonb,
   error text,
+  lease_owner text,
+  lease_until timestamptz,
   created_at timestamptz NOT NULL,
   updated_at timestamptz NOT NULL
 );
@@ -97,4 +99,5 @@ CREATE TABLE IF NOT EXISTS brain_events (
 CREATE INDEX IF NOT EXISTS memories_project_created_idx ON memories(project_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS memories_type_idx ON memories(type);
 CREATE INDEX IF NOT EXISTS tasks_project_status_idx ON tasks(project_id, status);
+CREATE INDEX IF NOT EXISTS tasks_claim_idx ON tasks(project_id, status, lease_until, updated_at);
 CREATE INDEX IF NOT EXISTS events_project_time_idx ON brain_events(project_id, timestamp DESC);
