@@ -148,3 +148,24 @@ it("recovers an expired worker lease",async()=>{
   expect(task.status).toBe("completed");
   expect(b.store.events.map(e=>e.type)).toContain("worker.task.recovered");
 });
+
+it("uses durable lease SQL without trusting malformed task output",async()=>{
+  const {PostgresPersistence}=await import("../src/persistence/postgres-persistence.js");
+  const calls:{sql:string;values:readonly unknown[]|undefined}[]=[];
+  const client:any={
+    async query(text:string,values?:readonly unknown[]){calls.push({sql:text,values});return{rows:text.startsWith("WITH expired")?[{id:"task-1"}]:[]};},
+    async transaction(work:(tx:any)=>Promise<unknown>){return work(this);}
+  };
+  const persistence=new PostgresPersistence(client);
+  await expect(persistence.claimReadyTaskIds("project","worker",1000,2)).resolves.toEqual(["task-1"]);
+  await persistence.heartbeatTaskLease("task-1","worker",1000);
+  await persistence.saveTaskLease({
+    id:"task-1",projectId:"project",title:"task",description:"task",type:"planned",status:"completed",
+    dependencies:[],risk:"low",permissions:[],acceptanceCriteria:[],attempts:1,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()
+  } as any,"worker");
+  expect(calls.some(x=>x.sql.includes("FOR UPDATE SKIP LOCKED"))).toBe(true);
+  expect(calls.some(x=>x.sql.startsWith("UPDATE tasks SET lease_until"))).toBe(true);
+  const release=calls.find(x=>x.sql.startsWith("UPDATE tasks"));
+  expect(release?.values?.[4]).toBeNull();
+});
+
