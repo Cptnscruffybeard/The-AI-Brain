@@ -1,0 +1,12 @@
+{
+  "name": "The AI Brain",
+  "short_name": "AI Brain",
+  "description": "Mobile console for the governed AI Brain runtime.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#071018",
+  "theme_color": "#071018",
+  "icons": [
+    {"src": "/brain-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
+  ]
+}
