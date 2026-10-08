@@ -47,8 +47,12 @@ export class Orchestrator {
       const context=this.compiler.compile(task),runtime=this.toolGateway.runtime(task,agent);context.allowedTools=runtime.allowedTools;context.toolRuntime=runtime;
       const result=await agent.execute(context),review=this.reviews.evaluate(context,result);
       this.store.events.push({id:id(),type:"task.reviewed",timestamp:now(),projectId:task.projectId,taskId:task.id,actor:"review-engine",data:{passed:review.passed,score:review.score,findings:review.findings}});
-      if(!review.passed){task.status="failed";task.error="Quality gate failed.";task.output={result,review};task.updatedAt=now();this.emit("task.failed",task.id,{reason:task.error});return{status:"failed",summary:task.error,output:{result,review}};}
-      task.status=result.status==="completed"?"completed":result.status==="blocked"?"blocked":"failed";task.output=result.output;if(result.status==="failed")task.error=result.summary;task.updatedAt=now();this.emit("task."+task.status,task.id,{agent:agent.id,summary:result.summary});return result;
+      // Quality gate only applies to completed agent work. Failed/blocked agent
+      // results must keep their original summaries (tool limits, policy denials, etc.).
+      if(result.status==="completed"&&!review.passed){
+        task.status="failed";task.error="Quality gate failed.";task.output={result,review};task.updatedAt=now();this.emit("task.failed",task.id,{reason:task.error});return{status:"failed",summary:task.error,output:{result,review}};
+      }
+      task.status=result.status==="completed"?"completed":result.status==="blocked"?"blocked":"failed";task.output=result.output;if(result.status!=="completed")task.error=result.summary;task.updatedAt=now();this.emit("task."+task.status,task.id,{agent:agent.id,summary:result.summary});return result;
     }catch(e){task.status="failed";task.error=e instanceof Error?e.message:String(e);task.updatedAt=now();this.emit("task.failed",task.id,{error:task.error});return{status:"failed",summary:task.error};}
   }
   private block(task:Task,reason:string):AgentResult{task.status="blocked";task.error=reason;task.updatedAt=now();this.emit("task.blocked",task.id,{reason});return{status:"blocked",summary:reason}}
