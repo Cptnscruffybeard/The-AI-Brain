@@ -93,12 +93,16 @@ export class PublicWebSearch implements ResearchProvider,ResearchVerifier {
   }
 
   private decodeHtml(value:string){
+    const amp="&"+"amp;";
+    const quot="&"+"quot;";
+    const lt="&"+"lt;";
+    const gt="&"+"gt;";
     return value
-      .replace(/&/gi,"&")
-      .replace(/"/gi,'"')
+      .split(amp).join("&")
+      .split(quot).join('"')
       .replace(/&#x27;|&#39;/gi,"'")
-      .replace(/</gi,"<")
-      .replace(/>/gi,">")
+      .split(lt).join("<")
+      .split(gt).join(">")
       .replace(/&#x2F;|&#47;/gi,"/");
   }
 
