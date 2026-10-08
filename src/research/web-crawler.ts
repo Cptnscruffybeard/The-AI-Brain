@@ -9,8 +9,11 @@ const DEFAULTS:CrawlConfig={maxPages:20,maxDepth:2,perHostDelayMs:750,timeoutMs:
 export class PublicWebCrawler implements ResearchProvider {
   constructor(private readonly config:CrawlConfig=DEFAULTS){}
   async search(query:string,limit:number){
-    const seeds=this.seedUrls(query).slice(0,limit);
-    const results:ResearchSource[]=[]; const queue=seeds.map(url=>({url,depth:0}));
+    return this.crawl(this.seedUrls(query).slice(0,limit),limit);
+  }
+
+  async crawl(seedUrls:string[],limit=this.config.maxPages){
+    const results:ResearchSource[]=[]; const queue=seedUrls.map(url=>({url,depth:0}));
     const visited=new Set<string>(); const hostLast=new Map<string,number>();
     while(queue.length&&results.length<this.config.maxPages){
       const item=queue.shift()!; const normalized=this.normalize(item.url);
