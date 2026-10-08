@@ -12,7 +12,7 @@ export class ResearchEngine {
   async research(projectId:string,topic:string,query=topic){
     const sources=await this.provider.search(query,this.config.discoverySources);
     const bank:UnverifiedResearch={id:id(),topic,query,sources:sources.slice(0,this.config.discoverySources),claims:[],createdAt:now()};
-    this.unverified.set(bank.id,bank);
+    this.unverified.set(bank.id,bank); this.store.researchBank.set(bank.id,bank);
     this.store.events.push({id:id(),type:"research.unverified.created",timestamp:now(),projectId,actor:"research-engine",data:{researchId:bank.id,sourceCount:bank.sources.length}});
     return bank;
   }
@@ -41,7 +41,20 @@ export class ResearchEngine {
     this.store.events.push({id:id(),type:"research.verified",timestamp:now(),projectId,actor:"research-engine",data:{researchId:bank.id,verifiedClaims:verified.length,sourceCount:all.length}});
     return bank;
   }
-  getUnverified(id:string){return this.unverified.get(id);}
+  getUnverified(id:string){return this.unverified.get(id) ?? this.store.researchBank.get(id);}
+  async researchAndLearn(projectId:string,topic:string,maxRelated=3,maxDepth=1){
+    const learned:string[]=[]; const first=await this.research(projectId,topic); const verified=await this.verify(projectId,first.id);
+    if(maxDepth<=0)return {records:[verified],learned};
+    const terms=this.relatedTopics(verified).slice(0,maxRelated);
+    for(const related of terms){const record=await this.research(projectId,related); learned.push(related); await this.verify(projectId,record.id);}
+    return {records:[verified],learned};
+  }
+  private relatedTopics(bank:UnverifiedResearch){
+    const stop=new Set(["about","after","before","could","would","there","their","which","these","those","where","when","what","that","with","from","into","using","more","than","also","this","have","been"]);
+    const counts=new Map<string,number>();
+    for(const claim of bank.claims.filter(c=>c.status==="verified")) for(const word of claim.statement.toLowerCase().split(/\\W+/)) if(word.length>=6&&!stop.has(word)) counts.set(word,(counts.get(word)??0)+1);
+    return [...counts.entries()].sort((a,b)=>b[1]-a[1]).slice(0,12).map(x=>bank.topic+" "+x[0]);
+  }
   private uniqueSources(sources:ResearchSource[]){const seen=new Set<string>();return sources.filter(s=>{const key=s.url.toLowerCase();if(seen.has(key))return false;seen.add(key);return true;});}
   private extractClaims(bank:UnverifiedResearch):ResearchClaim[]{
     const out:ResearchClaim[]=[]; const seen=new Set<string>();
