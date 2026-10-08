@@ -2,13 +2,13 @@ import {createHash} from "node:crypto";
 import {id,now} from "../core/id.js";
 import type {BrainStore} from "../core/store.js";
 import type {Memory} from "../domain/types.js";
-import type {ResearchClaim,ResearchConfig,ResearchProvider,ResearchSource,UnverifiedResearch} from "./research-types.js";
+import type {ResearchClaim,ResearchConfig,ResearchProvider,ResearchVerifier,ResearchSource,UnverifiedResearch} from "./research-types.js";
 
 const DEFAULT_CONFIG:ResearchConfig={discoverySources:8,verificationSources:6,minIndependentSources:3,maxSourceChars:50000};
 
 export class ResearchEngine {
   private readonly unverified=new Map<string,UnverifiedResearch>();
-  constructor(private readonly store:BrainStore,private readonly provider:ResearchProvider,private readonly config:ResearchConfig=DEFAULT_CONFIG){}
+  constructor(private readonly store:BrainStore,private readonly provider:ResearchProvider,private readonly verifier:ResearchVerifier,private readonly config:ResearchConfig=DEFAULT_CONFIG){}
   async research(projectId:string,topic:string,query=topic){
     const sources=await this.provider.search(query,this.config.discoverySources);
     const bank:UnverifiedResearch={id:id(),topic,query,sources:sources.slice(0,this.config.discoverySources),claims:[],createdAt:now()};
@@ -18,22 +18,24 @@ export class ResearchEngine {
   }
   async verify(projectId:string,researchId:string){
     const bank=this.unverified.get(researchId); if(!bank) throw new Error("Unknown research record.");
-    const verification=await this.provider.search(bank.query,this.config.verificationSources);
+    const verification=await this.verifier.crossReference(bank.query,bank.sources.map(s=>s.url),this.config.verificationSources);
     const all=this.uniqueSources([...bank.sources,...verification]);
     bank.sources=all;
     const claims=this.extractClaims(bank);
     for(const claim of claims){
       const matches=all.filter(s=>this.supports(s,claim));
+      const distinctDomains=new Set(matches.map(s=>{try{return new URL(s.url).hostname.replace(/^www\\./,"")}catch{return s.url}}));
       claim.sourceIds=matches.map(s=>s.id);
-      claim.confidence=Math.min(0.99,matches.length/this.config.minIndependentSources);
-      claim.status=matches.length>=this.config.minIndependentSources?"verified":"unverified";
+      claim.confidence=Math.min(0.99,distinctDomains.size/this.config.minIndependentSources);
+      claim.status=distinctDomains.size>=this.config.minIndependentSources?"verified":"unverified";
       if(claim.status==="verified") claim.verifiedAt=now();
     }
     bank.claims=claims;
     const verified=claims.filter(c=>c.status==="verified");
     for(const claim of verified){
       const memory:Omit<Memory,"id"|"createdAt">={projectId,type:"fact",content:claim.statement,tags:[bank.topic],source:"research:"+bank.id,confidence:claim.confidence,importance:0.5};
-      this.store.memories.set(id(),{...memory,id:id(),createdAt:now()});
+      const memoryId=id();
+      this.store.memories.set(memoryId,{...memory,id:memoryId,createdAt:now()});
       this.store.events.push({id:id(),type:"research.knowledge.promoted",timestamp:now(),projectId,actor:"research-engine",data:{researchId:bank.id,claimId:claim.id,sourceCount:claim.sourceIds.length}});
     }
     this.store.events.push({id:id(),type:"research.verified",timestamp:now(),projectId,actor:"research-engine",data:{researchId:bank.id,verifiedClaims:verified.length,sourceCount:all.length}});
