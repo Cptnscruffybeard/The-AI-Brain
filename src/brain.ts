@@ -22,6 +22,7 @@ import {createBrainVisualSnapshot} from "./visual/brain-snapshot.js";
 import {createBrainVisualGraph} from "./visual/brain-graph.js";
 import {ResearchEngine} from "./research/research-engine.js";
 import type {ResearchConfig,ResearchProvider,ResearchVerifier} from "./research/research-types.js";
+import {SearchBackedCrawler} from "./research/search-backed-crawler.js";
 
 export class AIBrain {
   readonly store=new BrainStore();
@@ -86,6 +87,11 @@ export class AIBrain {
   registerModelProvider(provider:ModelProvider){this.models.register(provider)}
   completeModel(request:ModelRequest,providerId:string,model:string){return this.models.complete(request,providerId,model)}
   configureResearch(provider:ResearchProvider,verifier:ResearchVerifier,config?:ResearchConfig){this.research=new ResearchEngine(this.store,provider,verifier,config);return this.research;}
+  configurePublicWebResearch(config?:ResearchConfig){
+    const discovery=new SearchBackedCrawler();
+    const verification=new SearchBackedCrawler();
+    return this.configureResearch(discovery,verification,config);
+  }
   researchTopic(projectId:string,topic:string,maxRelated=3,maxDepth=1){if(!this.research)throw new Error("Research engine is not configured.");return this.research.researchAndLearn(projectId,topic,maxRelated,maxDepth);}
   stopAll(){this.policy.stopAll()}
   resume(){this.policy.resume()}
