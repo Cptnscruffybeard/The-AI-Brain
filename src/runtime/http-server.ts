@@ -49,11 +49,21 @@ export function createBrainHttpServer(options:BrainHttpOptions={}){
    if(!authorize(req,res,apiKey,callerPermissions))return;
 
    if(req.method==="GET"&&path==="/api/health"){
-    return send(res,200,{ok:true,projects:brain.store.projects.size,tasks:brain.store.tasks.size,modelProviders:brain.models.list().map(x=>x.id)});
+    return send(res,200,{ok:true,projects:brain.store.projects.size,tasks:brain.store.tasks.size,modelProviders:brain.models.list().map(x=>x.id),killSwitch:brain.policy.isStopped()});
    }
    if(req.method==="GET"&&path==="/api/state"){
     requirePermission(callerPermissions,"read");
     return send(res,200,brain.visualSnapshot());
+   }
+   if(req.method==="GET"&&path==="/api/approvals"){
+    requirePermission(callerPermissions,"read");
+    const url=new URL(req.url??"/","http://127.0.0.1");
+    const projectId=url.searchParams.get("projectId")??undefined;
+    const status=url.searchParams.get("status")??undefined;
+    let rows=[...brain.store.approvals.values()];
+    if(projectId)rows=rows.filter(a=>a.projectId===projectId);
+    if(status==="pending"||status==="approved"||status==="rejected"||status==="expired")rows=rows.filter(a=>a.status===status);
+    return send(res,200,{approvals:rows});
    }
    if(req.method==="POST"&&path==="/api/projects"){
     requirePermission(callerPermissions,"write");
@@ -79,6 +89,21 @@ export function createBrainHttpServer(options:BrainHttpOptions={}){
     if(persistence)await persistence.flush(brain.store);
     return send(res,200,result);
    }
+   if(req.method==="POST"&&path==="/api/approvals/decide"){
+    requirePermission(callerPermissions,"execute");
+    const body=await jsonBody(req);
+    const approvalId=requiredString(body.approvalId,"approvalId");
+    const decision=body.decision;
+    if(decision!=="approved"&&decision!=="rejected")throw new Error("decision must be approved or rejected.");
+    const decidedBy=boundedString(body.decidedBy??"http-operator","decidedBy",200);
+    const approval=brain.approvals.decide(approvalId,decision,decidedBy);
+    let result:unknown=undefined;
+    if(decision==="approved"){
+      result=await brain.resumeApproved(approval.taskId,approval.id);
+    }
+    if(persistence)await persistence.flush(brain.store);
+    return send(res,200,{approval,result});
+   }
    if(req.method==="POST"&&path==="/api/worker/drain"){
     requirePermission(callerPermissions,"execute");
     const body=await jsonBody(req);
@@ -88,6 +113,16 @@ export function createBrainHttpServer(options:BrainHttpOptions={}){
     const result=await brain.drain(projectId,maxTicks);
     if(persistence)await persistence.flush(brain.store);
     return send(res,200,result);
+   }
+   if(req.method==="POST"&&path==="/api/policy/stop"){
+    requirePermission(callerPermissions,"execute");
+    brain.stopAll();
+    return send(res,200,{killSwitch:true});
+   }
+   if(req.method==="POST"&&path==="/api/policy/resume"){
+    requirePermission(callerPermissions,"execute");
+    brain.resume();
+    return send(res,200,{killSwitch:false});
    }
    return send(res,404,{error:"not found"});
   }catch(error){
