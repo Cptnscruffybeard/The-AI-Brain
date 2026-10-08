@@ -55,6 +55,16 @@ export function createBrainHttpServer(options:BrainHttpOptions={}){
     requirePermission(callerPermissions,"read");
     return send(res,200,brain.visualSnapshot());
    }
+   if(req.method==="GET"&&path==="/api/memories"){
+    requirePermission(callerPermissions,"read");
+    if(!persistence)throw new Error("Memory bank is not configured on this server.");
+    const url=new URL(req.url??"/","http://127.0.0.1");
+    const projectId=url.searchParams.get("projectId")??undefined;
+    const query=url.searchParams.get("q")??"";
+    const limit=boundedInteger(Number(url.searchParams.get("limit")??20),"limit",1,100);
+    const offset=boundedInteger(Number(url.searchParams.get("offset")??0),"offset",0,1_000_000);
+    return send(res,200,await persistence.memoryBank.search(projectId,query,limit,offset));
+   }
    if(req.method==="GET"&&path==="/api/approvals"){
     requirePermission(callerPermissions,"read");
     const url=new URL(req.url??"/","http://127.0.0.1");
@@ -64,6 +74,26 @@ export function createBrainHttpServer(options:BrainHttpOptions={}){
     if(projectId)rows=rows.filter(a=>a.projectId===projectId);
     if(status==="pending"||status==="approved"||status==="rejected"||status==="expired")rows=rows.filter(a=>a.status===status);
     return send(res,200,{approvals:rows});
+   }
+   if(req.method==="POST"&&path==="/api/memories"){
+    requirePermission(callerPermissions,"write");
+    if(!persistence)throw new Error("Memory bank is not configured on this server.");
+    const body=await jsonBody(req);
+    const projectId=optionalBoundedString(body.projectId,"projectId",200);
+    if(projectId&&!brain.store.getProject(projectId))return send(res,404,{error:"Project not found."});
+    const type=body.type??"fact";
+    const allowed=new Set(["preference","rule","decision","fact","lesson","assumption","constraint"]);
+    if(typeof type!=="string"||!allowed.has(type))throw new Error("Invalid memory type.");
+    const content=boundedString(body.content,"content",100_000);
+    const confidence=typeof body.confidence==="number"?Math.max(0,Math.min(1,body.confidence)):0.7;
+    const importance=typeof body.importance==="number"?Math.max(0,Math.min(1,body.importance)):0.5;
+    const memory=brain.remember({
+      ...(projectId?{projectId}:{}),type:type as any,content,
+      tags:Array.isArray(body.tags)?body.tags.map(String).slice(0,50):[],
+      source:optionalBoundedString(body.source,"source",500)||"mobile",confidence,importance
+    });
+    await persistence.memoryBank.put(memory);
+    return send(res,201,memory);
    }
    if(req.method==="POST"&&path==="/api/projects"){
     requirePermission(callerPermissions,"write");
