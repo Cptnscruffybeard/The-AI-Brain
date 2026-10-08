@@ -77,7 +77,7 @@ export class PublicWebSearch implements ResearchProvider,ResearchVerifier {
     for(const block of blocks){
       const link=block.match(/<a[^>]+class=["'][^"']*result__a[^"']*["'][^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/i)
         ?? block.match(/<a[^>]+href=["']([^"']+)["'][^>]+class=["'][^"']*result__a[^"']*["'][^>]*>([\s\S]*?)<\/a>/i);
-      if(!link)continue;
+      if(!link||link[1]===undefined||link[2]===undefined)continue;
       const url=this.decodeHtml(link[1]);
       if(!/^https?:\/\//i.test(url))continue;
       const title=this.clean(link[2]);
