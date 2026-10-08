@@ -1,4 +1,5 @@
 import type {BrainStore} from "../core/store.js";
+import {PostgresMemoryBank} from "../storage/postgres-memory-bank.js";
 import type {ApprovalRequest,Artifact,BrainEvent,Decision,Goal,Memory,Project,Task} from "../domain/types.js";
 
 export interface SqlClient {
@@ -7,7 +8,8 @@ export interface SqlClient {
 }
 
 export class PostgresPersistence {
-  constructor(private client:SqlClient){}
+  readonly memoryBank:PostgresMemoryBank;
+  constructor(private client:SqlClient){this.memoryBank=new PostgresMemoryBank(client);}
 
   async flush(store:BrainStore){
     return this.client.transaction(async tx=>{
