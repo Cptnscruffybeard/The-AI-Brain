@@ -44,7 +44,8 @@ export class PublicWebCrawler implements ResearchProvider {
       if(!res.ok)return true;
       const lines=(await res.text()).split(/\r?\n/); let applies=false;
       for(const raw of lines){
-        const line=raw.split("#")[0].trim(); const [key,value]=line.split(":",2).map(x=>x.trim());
+        const line=(raw.split("#")[0]??"").trim(); const parts=line.split(":",2).map(x=>x.trim());
+        const key=parts[0]; const value=parts[1];
         if(key?.toLowerCase()==="user-agent")applies=value==="*"||value===this.config.userAgent;
         if(applies&&key?.toLowerCase()==="disallow"&&value&&url.pathname.startsWith(value))return false;
       }
