@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#071018"><title>AIB Brain Console</title>
+<meta name="theme-color" content="#071018"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><link rel="manifest" href="/manifest.webmanifest"><title>AIB Brain Console</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#071018;color:#e8f0f5;font:14px system-ui,-apple-system,sans-serif}
 header{position:sticky;top:0;z-index:5;background:#09151e;border-bottom:1px solid #203442;padding:14px max(14px,env(safe-area-inset-left));display:flex;align-items:center;gap:10px}
@@ -23,8 +23,8 @@ pre{white-space:pre-wrap;word-break:break-word;background:#061017;border-radius:
 <main>
 <section class="card"><h2>Connection</h2><div class="muted">For remote deployment, enter the Brain API key. It remains in this browser session only.</div>
 <input id="key" type="password" placeholder="API key (optional for loopback)">
-<div class="row"><button class="primary" onclick="health()">Check Brain</button><button onclick="loadState()">Load State</button></div></section>
-<section class="card"><h2>Brain Chat</h2><select id="chatProject"><option value="">Select project…</option></select><div id="chat" class="muted">No messages yet.</div><textarea id="chatInput" placeholder="Ask the Brain to inspect, research, plan, or explain something…"></textarea><button class="primary" onclick="chat()">Send to Brain</button></section><section class="card"><h2>Tasks</h2><div class="row"><button onclick="loadTasks()">Refresh Tasks</button></div><div id="tasks" class="muted">Not loaded.</div></section><div class="grid">
+<div class="row"><button class="primary" onclick="health()">Check Brain</button><button onclick="loadState()">Load State</button><button onclick="mobileSmoke()">Mobile Test</button></div><div id="diagnostics" class="muted"></div></section>
+<section class="card"><h2>Brain Chat</h2><select id="chatProject"><option value="">Select project…</option></select><div id="chat" class="muted">No messages yet.</div><textarea id="chatInput" placeholder="Ask the Brain to inspect, research, plan, or explain something…"></textarea><button class="primary" onclick="chat()">Send to Brain</button><div class="muted">The Brain remains the same governed runtime; this console is only a mobile client.</div></section><section class="card"><h2>Tasks</h2><div class="row"><button onclick="loadTasks()">Refresh Tasks</button></div><div id="tasks" class="muted">Not loaded.</div></section><div class="grid">
 <section class="card"><h2>Memory Bank</h2><input id="search" placeholder="Search memories…">
 <div class="row"><button class="primary" onclick="searchMemories()">Search</button><button onclick="remember()">Store Memory</button></div><div id="memories" class="muted">No search performed.</div></section>
 <section class="card"><h2>Store Memory</h2><select id="type"><option>fact</option><option>preference</option><option>rule</option><option>decision</option><option>lesson</option><option>assumption</option><option>constraint</option></select>
@@ -40,7 +40,7 @@ const $=id=>document.getElementById(id);
 const headers=()=>{const k=$("key").value.trim();return k?{"authorization":"Bearer "+k,"content-type":"application/json"}:{"content-type":"application/json"}};
 async function api(path,opt={}){const r=await fetch(path,{...opt,headers:{...headers(),...(opt.headers||{})}});const text=await r.text();let data;try{data=JSON.parse(text)}catch{data=text}if(!r.ok)throw new Error((data&&data.error)||("HTTP "+r.status));return data}
 function show(x){$("out").textContent=JSON.stringify(x,null,2)}
-async function health(){try{const x=await api("/api/health");$("status").textContent=x.ok?"ONLINE":"ERROR";show(x)}catch(e){$("status").textContent="OFFLINE";show({error:e.message})}}
+async function health(){try{const x=await api("/api/health");$("status").textContent=x.ok?"ONLINE":"ERROR";show(x);return x}catch(e){$("status").textContent="OFFLINE";show({error:e.message});throw e}}\nasync function mobileSmoke(){const d=$("diagnostics");d.textContent="Running mobile readiness checks…";const checks=[];for(const [name,path] of [["Health","/api/health"],["State","/api/state"],["Tasks","/api/tasks"],["Memory API","/api/memories?limit=1"]]){try{await api(path);checks.push("✓ "+name)}catch(e){checks.push("✗ "+name+": "+e.message)}}d.innerHTML=checks.map(esc).join("<br>");show({mobileReadiness:checks,origin:location.origin,userAgent:navigator.userAgent})}
 async function loadState(){try{show(await api("/api/state"))}catch(e){show({error:e.message})}}
 async function chat(){try{const msg=$("chatInput").value.trim();if(!msg)return;const p=$("chatProject").value;if(!p){appendChat("System","Select a project first.");return;}appendChat("You",msg);$("chatInput").value="";const x=await api("/api/chat",{method:"POST",body:JSON.stringify({projectId:p,message:msg})});appendChat("Brain",x.output??x.summary??x);show(x);await loadTasks()}catch(e){appendChat("Error",e.message);show({error:e.message})}}
 function appendChat(who,value){const d=document.createElement("div");d.className="memory";d.innerHTML="<b>"+esc(who)+"</b><div>"+esc(typeof value==="string"?value:JSON.stringify(value))+"</div>";$("chat").prepend(d)}
