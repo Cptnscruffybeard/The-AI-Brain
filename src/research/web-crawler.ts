@@ -59,7 +59,11 @@ export class PublicWebCrawler implements ResearchProvider {
       return {id:id(),url:res.url,title:this.title(raw,res.url),retrievedAt:now(),content,contentHash:sourceHash(content)};
     }catch{return undefined;}
   }
-  private extractText(raw:string){return raw.replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<[^>]+>/g," ").replace(/&nbsp;/gi," ").replace(/&/gi,"&").replace(/\s+/g," ").trim();}
+  private extractText(raw:string){
+    const nbsp="&"+"nbsp;";
+    const amp="&"+"amp;";
+    return raw.replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<[^>]+>/g," ").split(nbsp).join(" ").split(amp).join("&").replace(/\s+/g," ").trim();
+  }
   private title(raw:string,url:string){const m=raw.match(/<title[^>]*>([\s\S]*?)<\/title>/i);return (m?.[1]??url).replace(/\s+/g," ").trim().slice(0,300);}
   private normalize(url:string){try{const u=new URL(url);if(u.protocol!=="http:"&&u.protocol!=="https:")return undefined;u.hash="";return u.toString();}catch{return undefined;}}
 }
