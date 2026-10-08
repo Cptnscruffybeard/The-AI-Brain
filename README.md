@@ -120,3 +120,25 @@ Recommended production tiers:
 2. pgvector: semantic memory embeddings and similarity search.
 3. S3-compatible object storage: large files/artifacts; Brain stores references rather than copies.
 4. Mobile client: bounded working-set cache only; no full-memory download.
+
+## Phone test (same Wi-Fi)
+
+The Brain Console is served by the same HTTP process as the Brain API, so a phone can use it without installing an app.
+
+On the computer running the Brain:
+
+```bash
+export BRAIN_HOST=0.0.0.0
+export BRAIN_API_KEY="use-a-long-random-secret"
+npm run start:dev
+```
+
+Find the computer's LAN IPv4 address (for example `192.168.1.25`). On the phone, while connected to the same Wi-Fi, open:
+
+```
+http://192.168.1.25:8787/
+```
+
+Enter the same API key in the Console and press **Check Brain**.
+
+This mode is intended for local testing only. Do not expose port 8787 directly to the public Internet. For remote access, put the Brain behind HTTPS and an authenticated reverse proxy/tunnel, and keep the API key out of URLs.
