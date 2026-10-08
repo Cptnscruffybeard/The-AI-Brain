@@ -98,6 +98,26 @@ export function createBrainHttpServer(options:BrainHttpOptions={}){
     if(status==="pending"||status==="approved"||status==="rejected"||status==="expired")rows=rows.filter(a=>a.status===status);
     return send(res,200,{approvals:rows});
    }
+   if(req.method==="POST"&&path==="/api/memories/supersede"){
+    requirePermission(callerPermissions,"write");
+    if(!persistence)throw new Error("Memory bank is not configured on this server.");
+    const body=await jsonBody(req);
+    const oldId=requiredString(body.oldId,"oldId");
+    const old=await persistence.memoryBank.get(oldId);
+    if(!old)return send(res,404,{error:"Memory not found."});
+    const content=boundedString(body.content,"content",100_000);
+    const replacement=brain.supersedeMemory(oldId,{
+      ...(old.projectId?{projectId:old.projectId}:{}),
+      type:old.type,content,
+      tags:Array.isArray(body.tags)?body.tags.map(String).slice(0,50):old.tags,
+      source:optionalBoundedString(body.source,"source",500)||"mobile",
+      confidence:typeof body.confidence==="number"?Math.max(0,Math.min(1,body.confidence)):old.confidence,
+      importance:typeof body.importance==="number"?Math.max(0,Math.min(1,body.importance)):old.importance
+    });
+    await persistence.memoryBank.put(replacement);
+    await persistence.flush(brain.store);
+    return send(res,200,{replaced:oldId,memory:replacement});
+   }
    if(req.method==="POST"&&path==="/api/memories"){
     requirePermission(callerPermissions,"write");
     if(!persistence)throw new Error("Memory bank is not configured on this server.");
