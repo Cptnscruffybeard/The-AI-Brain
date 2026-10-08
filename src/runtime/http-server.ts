@@ -46,6 +46,13 @@ export function createBrainHttpServer(options:BrainHttpOptions={}){
   setHeaders(res);
   try{
    if(req.method!=="GET"&&req.method!=="POST"){res.setHeader("allow","GET, POST");return send(res,405,{error:"method not allowed"})}
+   if(req.method==="GET"&&(pathIs(req,"/manifest.webmanifest")||pathIs(req,"/brain-icon.svg"))){
+    const path=pathIs(req,"/manifest.webmanifest")?"../../web/manifest.webmanifest":"../../web/brain-icon.svg";
+    const body=await readFile(fileURLToPath(new URL(path,import.meta.url)),"utf8");
+    res.setHeader("content-type",path.endsWith(".webmanifest")?"application/manifest+json":"image/svg+xml");
+    res.setHeader("cache-control","no-store");
+    res.writeHead(200);res.end(body);return;
+   }
    if(req.method==="GET"&&(pathIs(req,"/")||pathIs(req,"/brain-console.html"))){
     const html=await readFile(fileURLToPath(new URL("../../web/brain-console.html",import.meta.url)),"utf8");
     const nonce=randomBytes(16).toString("base64");
