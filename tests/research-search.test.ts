@@ -2,11 +2,13 @@ import {describe,expect,it,vi} from "vitest";
 import {PublicWebSearch} from "../src/research/web-search.js";
 import {SearchBackedCrawler} from "../src/research/search-backed-crawler.js";
 
+const SAMPLE_HTML=`<div class="result"><a class="result__a" href="https://a.example/x">A</a><a class="result__snippet">first result</a></div>
+       <div class="result"><a class="result__a" href="https://b.example/x">B</a><a class="result__snippet">second result</a></div>`;
+
 describe("public web search",()=>{
   it("parses search results and excludes URLs during verification",async()=>{
-    const fetchMock=vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(
-      `<div class="result"><a class="result__a" href="https://a.example/x">A</a><a class="result__snippet">first result</a></div>
-       <div class="result"><a class="result__a" href="https://b.example/x">B</a><a class="result__snippet">second result</a></div>`,
+    const fetchMock=vi.spyOn(globalThis,"fetch").mockImplementation(async()=>new Response(
+      SAMPLE_HTML,
       {status:200,headers:{"content-type":"text/html"}}
     ));
     const search=new PublicWebSearch({endpoint:"https://search.test",timeoutMs:1000,maxResults:10,userAgent:"test"});
