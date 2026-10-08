@@ -1,7 +1,7 @@
 import {createServer,type IncomingMessage,type ServerResponse} from "node:http";
 import {timingSafeEqual} from "node:crypto";
 import {AIBrain} from "../brain.js";
-import type {Permission,RiskLevel} from "../domain/types.js";
+import type {Memory,Permission,RiskLevel} from "../domain/types.js";
 import {OpenAICompatibleProvider} from "../model/openai-compatible-provider.js";
 import type {PostgresPersistence} from "../persistence/postgres-persistence.js";
 
@@ -88,7 +88,7 @@ export function createBrainHttpServer(options:BrainHttpOptions={}){
     const confidence=typeof body.confidence==="number"?Math.max(0,Math.min(1,body.confidence)):0.7;
     const importance=typeof body.importance==="number"?Math.max(0,Math.min(1,body.importance)):0.5;
     const memory=brain.remember({
-      ...(projectId?{projectId}:{}),type:type as any,content,
+      ...(projectId?{projectId}:{}),type:type as Memory["type"],content,
       tags:Array.isArray(body.tags)?body.tags.map(String).slice(0,50):[],
       source:optionalBoundedString(body.source,"source",500)||"mobile",confidence,importance
     });
