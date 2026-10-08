@@ -31,7 +31,7 @@ export class PostgresMemoryBank implements MemoryBank {
   async search(projectId:string|undefined,query:string,limit:number,offset:number):Promise<MemoryPage>{
     const safeLimit=Math.max(1,Math.min(100,Math.floor(limit)));
     const safeOffset=Math.max(0,Math.floor(offset));
-    const words=query.toLowerCase().split(/\\W+/).filter(w=>w.length>=3).slice(0,20);
+    const words=query.toLowerCase().split(/\W+/).filter(w=>w.length>=3).slice(0,20);
     const params:[unknown,unknown,unknown,unknown]=[projectId??null,safeLimit,safeOffset,words];
     const where=`WHERE ($1::text IS NULL OR project_id=$1 OR project_id IS NULL)
       AND superseded_by IS NULL
