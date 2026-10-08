@@ -24,6 +24,19 @@ describe("Brain HTTP API integration",()=>{
       expect(await response.text()).toContain("Brain Console");
     }finally{await stop(app)}
   });
+  it("serves the mobile manifest and icon",async()=>{
+    const {app,base}=await start();
+    try{
+      const manifest=await fetch(base+"/manifest.webmanifest");
+      expect(manifest.status).toBe(200);
+      expect(manifest.headers.get("content-type")).toContain("application/manifest+json");
+      expect((await manifest.json() as {display:string}).display).toBe("standalone");
+      const icon=await fetch(base+"/brain-icon.svg");
+      expect(icon.status).toBe(200);
+      expect(icon.headers.get("content-type")).toContain("image/svg+xml");
+      expect((await icon.text())).toContain("<svg");
+    }finally{await stop(app)}
+  });
   it("rejects unsupported methods",async()=>{
     const {app,base}=await start();
     try{
