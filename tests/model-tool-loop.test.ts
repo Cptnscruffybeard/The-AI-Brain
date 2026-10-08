@@ -1,6 +1,5 @@
 import {describe,it,expect} from "vitest";
 import {AIBrain} from "../src/brain.js";
-import {ModelBackedAgent} from "../src/agents/model-backed-agent.js";
 import type {ModelProvider,ModelRequest} from "../src/domain/types.js";
 
 describe("model tool loop",()=>{
@@ -15,10 +14,11 @@ describe("model tool loop",()=>{
         calls++;
         if(calls===1){
           expect(request.messages.some(m=>m.role==="user")).toBe(true);
-          return {provider:"fake-loop",model:"test",text:JSON.stringify({type:"tool_call",tool:"task.inspect",input:{taskId:[...b.store.tasks.values()][0]?.id}})};
+          const task=[...b.store.tasks.values()][0];
+          return {provider:"fake-loop",model:"test",text:JSON.stringify({type:"tool_call",tool:"task.inspect",input:{taskId:task?.id}})};
         }
         const toolMessage=request.messages.find(m=>m.role==="tool");
-        expect(toolMessage?.content).toContain("tool-loop");
+        expect(toolMessage?.content).toContain("inspect the current task");
         return {provider:"fake-loop",model:"test",text:JSON.stringify({type:"final",text:"tool result received"})};
       }
     };
