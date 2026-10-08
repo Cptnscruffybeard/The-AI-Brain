@@ -23,11 +23,20 @@ export class ResearchEngine {
     bank.sources=all;
     const claims=this.extractClaims(bank);
     for(const claim of claims){
-      const matches=all.filter(s=>this.supports(s,claim));
-      const distinctDomains=new Set(matches.map(s=>{try{return new URL(s.url).hostname.replace(/^www\\./,"")}catch{return s.url}}));
-      claim.sourceIds=matches.map(s=>s.id);
-      claim.confidence=Math.min(0.99,distinctDomains.size/this.config.minIndependentSources);
-      claim.status=distinctDomains.size>=this.config.minIndependentSources?"verified":"unverified";
+      const evidence=all.map(source=>this.evidenceFor(source,claim)).filter(x=>x.score>=0.45);
+      const domainEvidence=new Map<string,{source:ResearchSource;score:number;excerpt:string}>();
+      for(const item of evidence){
+        const domain=this.domainOf(item.source.url);
+        const current=domainEvidence.get(domain);
+        if(!current||item.score>current.score)domainEvidence.set(domain,item);
+      }
+      const independent=[...domainEvidence.values()].filter(x=>x.score>=0.55);
+      claim.sourceIds=independent.map(x=>x.source.id);
+      claim.evidence=independent.map(x=>({sourceId:x.source.id,excerpt:x.excerpt,score:x.score}));
+      const corroboration=independent.length>=this.config.minIndependentSources;
+      const quality=Math.min(1,independent.reduce((sum,x)=>sum+x.score,0)/Math.max(1,independent.length));
+      claim.confidence=corroboration?Math.min(0.99,0.55+0.45*quality):Math.min(0.54,independent.length/this.config.minIndependentSources*0.54);
+      claim.status=corroboration?"verified":"unverified";
       if(claim.status==="verified") claim.verifiedAt=now();
     }
     bank.claims=claims;
@@ -68,11 +77,28 @@ export class ResearchEngine {
     }
     return out.slice(0,100);
   }
-  private supports(source:ResearchSource,claim:ResearchClaim){
-    const words=claim.statement.toLowerCase().split(/\W+/).filter(w=>w.length>4);
-    const text=source.content.toLowerCase();
-    const hits=words.filter(w=>text.includes(w)).length;
-    return hits>=Math.max(3,Math.ceil(words.length*.35));
+  private evidenceFor(source:ResearchSource,claim:ResearchClaim){
+    const words=this.keywords(claim.statement);
+    const sentences=source.content.split(/(?<=[.!?])\s+/).map(s=>s.trim()).filter(Boolean);
+    let best={score:0,excerpt:""};
+    for(const sentence of sentences.slice(0,200)){
+      const sentenceWords=new Set(this.keywords(sentence));
+      if(!sentenceWords.size)continue;
+      const overlap=words.filter(w=>sentenceWords.has(w)).length/Math.max(1,words.length);
+      const coverage=words.filter(w=>sentenceWords.has(w)).length/Math.max(1,sentenceWords.size);
+      const score=0.65*overlap+0.35*coverage;
+      if(score>best.score)best={score,excerpt:sentence.slice(0,1000)};
+    }
+    return {source,score:best.score,excerpt:best.excerpt};
+  }
+
+  private keywords(text:string){
+    const stop=new Set(["about","after","again","against","before","being","between","could","does","doing","from","have","into","more","other","over","such","than","that","their","there","these","they","this","those","using","what","when","where","which","with","would","also","been","were","will"]);
+    return [...new Set(text.toLowerCase().split(/\W+/).filter(w=>w.length>=5&&!stop.has(w)))];
+  }
+
+  private domainOf(url:string){
+    try{return new URL(url).hostname.toLowerCase().replace(/^www\./,"");}catch{return url.toLowerCase();}
   }
 }
 
