@@ -34,7 +34,7 @@ export class PublicWebSearch implements ResearchProvider,ResearchVerifier {
 
   private async run(query:string,limit:number,excludeUrls:string[]){
     const requested=Math.max(1,Math.min(limit,this.config.maxResults));
-    const excluded=new Set(excludeUrls.map(this.canonicalUrl));
+    const excluded=new Set(excludeUrls.map(url=>this.canonicalUrl(url)));
     const body=new URLSearchParams({q:query});
     const response=await fetch(this.config.endpoint,{
       method:"POST",
@@ -79,9 +79,9 @@ export class PublicWebSearch implements ResearchProvider,ResearchVerifier {
         ?? block.match(/<a[^>]+href=["']([^"']+)["'][^>]+class=["'][^"']*result__a[^"']*["'][^>]*>([\s\S]*?)<\/a>/i);
       if(!link)continue;
       const url=this.decodeHtml(link[1]);
-      if(!/^https?:\\/\\//i.test(url))continue;
+      if(!/^https?:\/\//i.test(url))continue;
       const title=this.clean(link[2]);
-      const snippetMatch=block.match(/class=["'][^"']*result__snippet[^"']*["'][^>]*>([\s\S]*?)<\\/[^>]+>/i);
+      const snippetMatch=block.match(/class=["'][^"']*result__snippet[^"']*["'][^>]*>([\s\S]*?)<\/[^>]+>/i);
       const snippet=this.clean(snippetMatch?.[1]??"");
       results.push({url,title,snippet});
     }
@@ -89,16 +89,16 @@ export class PublicWebSearch implements ResearchProvider,ResearchVerifier {
   }
 
   private clean(value:string){
-    return this.decodeHtml(value.replace(/<[^>]+>/g," ").replace(/\\s+/g," ").trim());
+    return this.decodeHtml(value.replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim());
   }
 
   private decodeHtml(value:string){
     return value
-      .replace(/&amp;/gi,"&")
-      .replace(/&quot;/gi,'"')
+      .replace(/&/gi,"&")
+      .replace(/"/gi,'"')
       .replace(/&#x27;|&#39;/gi,"'")
-      .replace(/&lt;/gi,"<")
-      .replace(/&gt;/gi,">")
+      .replace(/</gi,"<")
+      .replace(/>/gi,">")
       .replace(/&#x2F;|&#47;/gi,"/");
   }
 
