@@ -26,11 +26,11 @@ The API deliberately caps a page at 100 memories. A future mobile client should 
 
 ## Recommended deployment
 
-For the first personal prototype, a hosted PostgreSQL service is the simplest durable memory bank. Supabase currently offers PostgreSQL, pgvector, storage, and generated APIs; its free tier lists 500 MB database size and 1 GB storage. citeturn0search2turn0search19
+For the first personal prototype, a hosted PostgreSQL service is the simplest durable memory bank. Supabase currently offers PostgreSQL, pgvector, storage, and generated APIs; its free tier lists 500 MB database size and 1 GB storage.
 
-Neon is another strong PostgreSQL option. Its October 2026 update lists 1 GB of database storage per free project. citeturn0search0
+Neon is another strong PostgreSQL option. Its October 2026 update lists 1 GB of database storage per free project.
 
-For large files, Cloudflare R2 is attractive because current standard storage is $0.015/GB-month and Internet egress is free. citeturn0search1
+For large files, Cloudflare R2 is attractive because current standard storage is $0.015/GB-month and Internet egress is free.
 
 ## Recommended architecture for the personal mobile version
 
