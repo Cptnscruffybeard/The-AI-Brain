@@ -93,10 +93,12 @@ export function createBrainHttpServer(options:BrainHttpOptions={}){
     const url=new URL(req.url??"/","http://127.0.0.1");
     const projectId=url.searchParams.get("projectId")??undefined;
     const status=url.searchParams.get("status")??undefined;
+    const limit=boundedInteger(Number(url.searchParams.get("limit")??100),"limit",1,100);
     let rows=[...brain.store.approvals.values()];
     if(projectId)rows=rows.filter(a=>a.projectId===projectId);
     if(status==="pending"||status==="approved"||status==="rejected"||status==="expired")rows=rows.filter(a=>a.status===status);
-    return send(res,200,{approvals:rows});
+    rows.sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+    return send(res,200,{approvals:rows.slice(0,limit)});
    }
    if(req.method==="POST"&&path==="/api/memories/supersede"){
     requirePermission(callerPermissions,"write");
