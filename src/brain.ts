@@ -20,6 +20,8 @@ import type {ModelProvider,ModelRequest} from "./domain/types.js";
 import type {AgentDefinition,BrainRequest,Memory,Project,Task} from "./domain/types.js";
 import {createBrainVisualSnapshot} from "./visual/brain-snapshot.js";
 import {createBrainVisualGraph} from "./visual/brain-graph.js";
+import {ResearchEngine} from "./research/research-engine.js";
+import type {ResearchConfig,ResearchProvider,ResearchVerifier} from "./research/research-types.js";
 
 export class AIBrain {
   readonly store=new BrainStore();
@@ -35,6 +37,7 @@ export class AIBrain {
   readonly scheduler:TaskScheduler;
   readonly worker:BrainWorker;
   readonly models=new ModelRouter();
+  research?:ResearchEngine;
 
   constructor(){
     this.memory=new MemoryService(this.store);
@@ -82,6 +85,8 @@ export class AIBrain {
   plan(projectId:string,steps:PlanStep[]){return this.planner.create(projectId,steps)}
   registerModelProvider(provider:ModelProvider){this.models.register(provider)}
   completeModel(request:ModelRequest,providerId:string,model:string){return this.models.complete(request,providerId,model)}
+  configureResearch(provider:ResearchProvider,verifier:ResearchVerifier,config?:ResearchConfig){this.research=new ResearchEngine(this.store,provider,verifier,config);return this.research;}
+  researchTopic(projectId:string,topic:string,maxRelated=3,maxDepth=1){if(!this.research)throw new Error("Research engine is not configured.");return this.research.researchAndLearn(projectId,topic,maxRelated,maxDepth);}
   stopAll(){this.policy.stopAll()}
   resume(){this.policy.resume()}
   persist(persistence:PostgresPersistence){this.worker.attachPersistence(persistence);return persistence.flush(this.store)}
