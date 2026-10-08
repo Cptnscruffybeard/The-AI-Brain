@@ -17,6 +17,8 @@ The model is never the final authority over permissions. External content is tre
 - Model-backed agents with bounded tool loops; quality gate only on completed results.
 - Authenticated HTTP control plane (approvals, drain, kill switch, caller ceilings).
 - PostgreSQL schema + pgvector HNSW index hooks.
+- Remote-first memory bank with paged mobile APIs so clients keep only a bounded working set.
+- Memory-bank query indexes; large artifacts are referenced by URI instead of copied into client storage.
 
 ## Architecture
 
@@ -90,6 +92,8 @@ brain.configureGit({ root: "/path/to/repo", allowPrefixes: ["src"] });
 | GET | `/api/health` | Liveness + kill-switch |
 | GET | `/api/state` | Runtime snapshot |
 | GET | `/api/approvals` | List approvals |
+| GET | `/api/memories` | Paged remote memory-bank search |
+| POST | `/api/memories` | Add a memory to the remote bank |
 | POST | `/api/projects` | Create project |
 | POST | `/api/projects/goal` | Submit goal |
 | POST | `/api/approvals/decide` | Approve/reject + resume |
@@ -104,3 +108,15 @@ brain.configureGit({ root: "/path/to/repo", allowPrefixes: ["src"] });
 4. Quality gate applies only to completed work.
 5. Research promotes only multi-domain verified claims.
 6. Repo tools are read-only and path-jailed.
+
+## Memory storage architecture
+
+The Brain is designed as **remote-first**, not device-first. PostgreSQL is the durable source of truth for structured memories. A mobile client should request only the memories needed for the current task, using `/api/memories` with a bounded page size. It should keep a small encrypted working cache rather than the complete memory bank.
+
+For larger files, images, reports, and other artifacts, store the bytes in object storage and keep only a URI/metadata record in the Brain. pgvector can hold embeddings alongside memories for semantic retrieval without requiring the phone to maintain the full index.
+
+Recommended production tiers:
+1. PostgreSQL: structured memories, provenance, permissions, metadata, and durable indexing.
+2. pgvector: semantic memory embeddings and similarity search.
+3. S3-compatible object storage: large files/artifacts; Brain stores references rather than copies.
+4. Mobile client: bounded working-set cache only; no full-memory download.
