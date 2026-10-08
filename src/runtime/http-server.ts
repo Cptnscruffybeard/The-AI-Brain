@@ -59,7 +59,8 @@ export function createBrainHttpServer(options:BrainHttpOptions={}){
     requirePermission(callerPermissions,"write");
     const body=await jsonBody(req);
     const name=boundedString(body.name,"name",1000);
-    const project=brain.createProject(name,boundedString(body.description??"","description",100_000));
+    const description=optionalBoundedString(body.description,"description",100_000);
+    const project=brain.createProject(name,description);
     if(persistence)await persistence.flush(brain.store);
     return send(res,201,project);
    }
@@ -189,6 +190,12 @@ function boundedString(value:unknown,name:string,max:number){
  if(text.length>max)throw new Error(name+" is too large.");
  return text;
 }
+function optionalBoundedString(value:unknown,name:string,max:number){
+ if(value===undefined||value===null||value==="")return "";
+ if(typeof value!=="string")throw new Error(name+" must be a string.");
+ if(value.length>max)throw new Error(name+" is too large.");
+ return value;
+}
 function boundedInteger(value:unknown,name:string,min:number,max:number){
  if(typeof value!=="number"||!Number.isInteger(value)||value<min||value>max)throw new Error(name+" must be an integer between "+min+" and "+max+".");
  return value;
@@ -203,11 +210,12 @@ function validPermissions(value:unknown):Permission[]{
  return [...new Set(value as Permission[])];
 }
 async function jsonBody(req:IncomingMessage){
- let data="";
+ const chunks:Buffer[]=[];
  for await(const chunk of req){
-  data+=typeof chunk==="string"?chunk:Buffer.from(chunk).toString("utf8");
-  if(Buffer.byteLength(data,"utf8")>MAX_BODY_BYTES)throw new Error("Request body too large.");
+  chunks.push(typeof chunk==="string"?Buffer.from(chunk):Buffer.from(chunk));
+  if(chunks.reduce((n,c)=>n+c.length,0)>MAX_BODY_BYTES)throw new Error("Request body too large.");
  }
+ const data=Buffer.concat(chunks).toString("utf8");
  if(!data.trim())return {};
  const value=JSON.parse(data);
  if(!value||typeof value!=="object"||Array.isArray(value))throw new Error("JSON object required.");
