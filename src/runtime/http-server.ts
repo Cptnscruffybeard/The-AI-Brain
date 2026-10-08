@@ -77,6 +77,17 @@ export function createBrainHttpServer(options:BrainHttpOptions={}){
     const offset=boundedInteger(Number(url.searchParams.get("offset")??0),"offset",0,1_000_000);
     return send(res,200,await persistence.memoryBank.search(projectId,query,limit,offset));
    }
+   if(req.method==="GET"&&path==="/api/tasks"){
+    requirePermission(callerPermissions,"read");
+    const url=new URL(req.url??"/","http://127.0.0.1");
+    const projectId=url.searchParams.get("projectId")??undefined;
+    const status=url.searchParams.get("status")??undefined;
+    let tasks=[...brain.store.tasks.values()];
+    if(projectId)tasks=tasks.filter(t=>t.projectId===projectId);
+    if(status)tasks=tasks.filter(t=>t.status===status);
+    tasks.sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+    return send(res,200,{tasks:tasks.slice(0,100)});
+   }
    if(req.method==="GET"&&path==="/api/approvals"){
     requirePermission(callerPermissions,"read");
     const url=new URL(req.url??"/","http://127.0.0.1");
@@ -106,6 +117,22 @@ export function createBrainHttpServer(options:BrainHttpOptions={}){
     });
     await persistence.memoryBank.put(memory);
     return send(res,201,memory);
+   }
+   if(req.method==="POST"&&path==="/api/chat"){
+    requirePermission(callerPermissions,"read");
+    const body=await jsonBody(req);
+    const projectId=requiredString(body.projectId,"projectId");
+    if(!brain.store.getProject(projectId))return send(res,404,{error:"Project not found."});
+    const message=boundedString(body.message,"message",50_000);
+    const result=await brain.request({
+      projectId,
+      goal:message,
+      risk:"low",
+      permissions:["read"],
+      acceptanceCriteria:[]
+    });
+    if(persistence)await persistence.flush(brain.store);
+    return send(res,200,result);
    }
    if(req.method==="POST"&&path==="/api/projects"){
     requirePermission(callerPermissions,"write");
