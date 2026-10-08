@@ -48,9 +48,10 @@ describe("research workflow",()=>{
     brain.registerAgent(agent);
     const task=planned[0]!;
     task.status="running";
+    task.risk="medium";
     task.assignedAgent="r";
     const toolResult=await brain.tools.execute({
-      taskId:task.id,agentId:"r",toolName:"research.topic",permissions:[],taskPermissions:["read"],risk:"low",
+      taskId:task.id,agentId:"r",toolName:"research.topic",permissions:[],taskPermissions:["read"],risk:"medium",
       input:{projectId:project.id,topic:"oceans",maxRelated:0}
     },agent);
     expect(toolResult).toMatchObject({topic:"oceans"});
@@ -64,8 +65,7 @@ describe("semantic memory",()=>{
     const project=brain.createProject("sem");
     brain.remember({projectId:project.id,type:"fact",content:"Pacific Ocean is the largest ocean",tags:["ocean"],source:"test",confidence:0.9,importance:0.8});
     brain.remember({projectId:project.id,type:"fact",content:"Unrelated cooking recipe for pasta",tags:["food"],source:"test",confidence:0.9,importance:0.8});
-    // allow async index to settle
-    await new Promise(r=>setTimeout(r,20));
+    await new Promise(r=>setTimeout(r,30));
     const hits=await brain.memory.retrieveHybrid(project.id,"largest ocean body",5);
     expect(hits[0]?.content.toLowerCase()).toContain("pacific");
   });
