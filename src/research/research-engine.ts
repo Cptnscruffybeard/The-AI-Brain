@@ -61,7 +61,7 @@ export class ResearchEngine {
   private relatedTopics(bank:UnverifiedResearch){
     const stop=new Set(["about","after","before","could","would","there","their","which","these","those","where","when","what","that","with","from","into","using","more","than","also","this","have","been"]);
     const counts=new Map<string,number>();
-    for(const claim of bank.claims.filter(c=>c.status==="verified")) for(const word of claim.statement.toLowerCase().split(/\\W+/)) if(word.length>=6&&!stop.has(word)) counts.set(word,(counts.get(word)??0)+1);
+    for(const claim of bank.claims.filter(c=>c.status==="verified")) for(const word of claim.statement.toLowerCase().split(/\W+/)) if(word.length>=6&&!stop.has(word)) counts.set(word,(counts.get(word)??0)+1);
     return [...counts.entries()].sort((a,b)=>b[1]-a[1]).slice(0,12).map(x=>bank.topic+" "+x[0]);
   }
   private uniqueSources(sources:ResearchSource[]){const seen=new Set<string>();return sources.filter(s=>{const key=s.url.toLowerCase();if(seen.has(key))return false;seen.add(key);return true;});}
