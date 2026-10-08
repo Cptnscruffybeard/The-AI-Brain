@@ -1,5 +1,7 @@
 import {createServer,type IncomingMessage,type ServerResponse} from "node:http";
-import {timingSafeEqual} from "node:crypto";
+import {timingSafeEqual,randomBytes} from "node:crypto";
+import {readFile} from "node:fs/promises";
+import {fileURLToPath} from "node:url";
 import {AIBrain} from "../brain.js";
 import type {Memory,Permission,RiskLevel} from "../domain/types.js";
 import {OpenAICompatibleProvider} from "../model/openai-compatible-provider.js";
@@ -44,6 +46,16 @@ export function createBrainHttpServer(options:BrainHttpOptions={}){
   setHeaders(res);
   try{
    if(req.method!=="GET"&&req.method!=="POST"){res.setHeader("allow","GET, POST");return send(res,405,{error:"method not allowed"})}
+   if(req.method==="GET"&&(pathIs(req,"/")||pathIs(req,"/brain-console.html"))){
+    const html=await readFile(fileURLToPath(new URL("../../web/brain-console.html",import.meta.url)),"utf8");
+    const nonce=randomBytes(16).toString("base64");
+    const body=html.replace("__NONCE__",nonce);
+    res.setHeader("content-type","text/html; charset=utf-8");
+    res.setHeader("content-security-policy","default-src 'none'; script-src 'nonce-"+nonce+"'; style-src 'unsafe-inline'; connect-src 'self'; img-src data:; base-uri 'none'; frame-ancestors 'none'; object-src 'none';");
+    res.setHeader("x-content-type-options","nosniff");
+    res.setHeader("cache-control","no-store");
+    res.writeHead(200);res.end(body);return;
+   }
    const path=new URL(req.url??"/","http://127.0.0.1").pathname;
    if(!consumeRate(req,res,path,rateStates,rateLimit,drainRateLimit))return;
    if(!authorize(req,res,apiKey,callerPermissions))return;
@@ -289,3 +301,5 @@ async function jsonBody(req:IncomingMessage){
 class AuthorizationError extends Error{
  constructor(public readonly status:number,message:string){super(message)}
 }
+
+function pathIs(req:IncomingMessage,target:string){return new URL(req.url??"/","http://127.0.0.1").pathname===target}
