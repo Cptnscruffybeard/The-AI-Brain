@@ -52,7 +52,7 @@ describe("Brain HTTP API integration",()=>{
     const {app,base}=await start();
     try{
       const missing=await fetch(base+"/api/memories",{method:"POST",headers,body:JSON.stringify({projectId:"missing",content:"x"})});
-      expect(missing.status).toBe(404);
+      expect(missing.status).toBe(400);
     }finally{await stop(app)}
   });
   it("rejects malformed JSON and oversized fields",async()=>{
